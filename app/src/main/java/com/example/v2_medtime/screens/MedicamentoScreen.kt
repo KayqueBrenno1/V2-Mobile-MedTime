@@ -1,11 +1,10 @@
-package com.example.healthsystem_medtime.screens.cuidador
+package com.example.v2_medtime.screens
 
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,10 +54,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -70,15 +69,15 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.v2_medtime.model.MedicamentoRequest
+import com.example.v2_medtime.screens.components.BackgroundPadrao
+import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 
-
 val FundoTela = Color(0xFFF5F8FC)
-val OndaAzulSuave = Color(0xFFE4EFFB)
 val TextoEscuro = Color(0xFF1A2138)
 val TextoSecundario = Color(0xFF5A657D)
 val PlaceholderCinza = Color(0xFF9AA5B8)
@@ -95,8 +94,8 @@ fun validarCampos(estado: MedicamentoRequest): Set<String> {
     if (estado.unidadeMedida.isBlank()) erros.add("unidadeMedida")
     if (estado.dose.isBlank()) erros.add("dose")
     if (estado.tipoMedicamento.isBlank()) erros.add("tipoMedicamento")
-    if (estado.intervaloDosagem.isBlank()) erros.add("intervaloDosagem")
     if (estado.frequencia.isBlank()) erros.add("frequencia")
+    if (estado.intervaloDosagem.isBlank()) erros.add("intervaloDosagem")
     if (estado.horarioInicial.isBlank()) erros.add("horarioInicial")
     if (estado.quantidadeTotal.isBlank()) erros.add("quantidadeTotal")
 
@@ -105,9 +104,14 @@ fun validarCampos(estado: MedicamentoRequest): Set<String> {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavController) {
+fun MedicamentoScreen(
+    modifier: Modifier = Modifier,
+    navController: NavController,
+    viewModel: MedicamentoViewModel
+) {
     val context = LocalContext.current
 
+    // Captura de Imagem via FileProvider
     val photoFile = remember { File(context.cacheDir, "camera_foto_${System.currentTimeMillis()}.jpg") }
     var imagemRemedioUri by remember { mutableStateOf<Uri?>(null) }
     val cameraImagemUri = remember {
@@ -130,6 +134,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
 
     var mostrarOpcoesFoto by remember { mutableStateOf(false) }
 
+    // Seletor de Hora
     var mostrarSeletorHora by remember { mutableStateOf(false) }
     val timePickerState = rememberTimePickerState(
         initialHour = 8,
@@ -137,8 +142,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
         is24Hour = true
     )
 
-    val intervalosOpcoes = listOf("hora", "dia", "semana", "mês")
-
+    // Estado do Formulário
     var estadoFormulario by remember {
         mutableStateOf(
             MedicamentoRequest(
@@ -154,43 +158,15 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
         "Comprimido", "Cápsula", "Gotas", "Solução",
         "Xarope", "Suspensão", "Injeção", "Pomada", "Creme", "Spray"
     )
-    val frequenciasOpcoes = listOf(
-        "a cada 4 horas", "a cada 6 horas", "a cada 8 horas",
-        "a cada 12 horas", "1 vez ao dia", "2 vezes ao dia", "Uso contínuo"
-    )
+    val intervalosOpcoes = listOf("hora", "dia", "semana", "mês")
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(FundoTela)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val topWave = Path().apply {
-                moveTo(0f, 0f)
-                lineTo(size.width, 0f)
-                lineTo(size.width, size.height * 0.16f)
-                cubicTo(
-                    size.width * 0.75f, size.height * 0.22f,
-                    size.width * 0.35f, size.height * 0.10f,
-                    0f, size.height * 0.18f
-                )
-                close()
-            }
-            drawPath(path = topWave, color = OndaAzulSuave)
-
-            val bottomWave = Path().apply {
-                moveTo(0f, size.height)
-                lineTo(size.width, size.height)
-                lineTo(size.width, size.height * 0.84f)
-                cubicTo(
-                    size.width * 0.65f, size.height * 0.78f,
-                    size.width * 0.30f, size.height * 0.90f,
-                    0f, size.height * 0.82f
-                )
-                close()
-            }
-            drawPath(path = bottomWave, color = OndaAzulSuave)
-        }
+        // Seu componente oficial de fundo ondulado
+        BackgroundPadrao()
 
         Column(
             modifier = Modifier
@@ -200,6 +176,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Top Bar: < Voltar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -233,6 +210,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Card Branco Principal
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -245,6 +223,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Seletor de Foto do Medicamento
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -296,10 +275,11 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                             )
                         }
                     }
+
+                    // 1. Medicamento *
                     DesignTextField(
                         label = "Medicamento",
                         required = true,
-                        singleLine = true,
                         placeholder = "Ex.: Losartana",
                         value = estadoFormulario.nome,
                         isError = camposComErro.contains("nome"),
@@ -317,6 +297,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                         }
                     )
 
+                    // 2. Concentração * | Unidade *
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -351,6 +332,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                         }
                     }
 
+                    // 3. Dosagem * | Tipo de dosagem *
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -385,6 +367,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                         }
                     }
 
+                    // 4. Frequência * ("De [ 5 ] em 5 dia(s)")
                     val numeroFreq = estadoFormulario.frequencia.ifEmpty { "---" }
                     val unidadeFreq = if (estadoFormulario.intervaloDosagem.isNotEmpty()) {
                         "${estadoFormulario.intervaloDosagem}(s)"
@@ -424,7 +407,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 },
-                                textStyle = androidx.compose.ui.text.TextStyle(
+                                textStyle = TextStyle(
                                     fontSize = 15.sp,
                                     textAlign = TextAlign.Center,
                                     color = TextoEscuro
@@ -458,6 +441,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                         }
                     }
 
+                    // 4.1 Intervalo de dosagem *
                     DesignDropdownSelect(
                         label = "Intervalo de dosagem",
                         required = true,
@@ -471,6 +455,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                         }
                     )
 
+                    // 5. Primeiro horário * | Estoque inicial *
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -531,6 +516,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                         }
                     }
 
+                    // 6. Descrição (opcional)
                     DesignTextField(
                         label = "Descrição",
                         optionalHint = "(opcional)",
@@ -547,6 +533,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Botão Finalizar -> Salva no ViewModel e vai para Tela de Sucesso
             Button(
                 onClick = {
                     val errosEncontrados = validarCampos(estadoFormulario)
@@ -567,12 +554,18 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
                             }
                         }
 
-                        estadoFormulario = MedicamentoRequest()
+                        // Envia dados e foto para o ViewModel compartilhado
+                        viewModel.registrarMedicamento(estadoFormulario, imagemRemedioUri)
+
+                        // Reseta o formulário para caso o usuário clique em "Cadastrar outro medicamento"
+                        estadoFormulario = MedicamentoRequest(
+                            unidadeMedida = "mg",
+                            tipoMedicamento = "Comprimido"
+                        )
                         imagemRemedioUri = null
                         camposComErro = emptySet()
 
-                        Toast.makeText(context, "Medicamento cadastrado com sucesso!", Toast.LENGTH_SHORT).show()
-                        navController.popBackStack()
+                        navController.navigate("CadastroSucessoMedicamento")
                     } else {
                         Toast.makeText(context, "Preencha todos os campos obrigatórios (*).", Toast.LENGTH_SHORT).show()
                     }
@@ -594,6 +587,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
             Spacer(modifier = Modifier.height(32.dp))
         }
 
+        // Diálogo Câmera / Galeria
         if (mostrarOpcoesFoto) {
             AlertDialog(
                 onDismissRequest = { mostrarOpcoesFoto = false },
@@ -620,6 +614,7 @@ fun MedicamentoScreen(modifier: Modifier = Modifier, navController: NavControlle
             )
         }
 
+        // Diálogo TimePicker
         if (mostrarSeletorHora) {
             AlertDialog(
                 onDismissRequest = { mostrarSeletorHora = false },
@@ -719,6 +714,7 @@ fun DesignTextField(
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = !enabled,
+            textStyle = TextStyle(fontSize = 14.sp),
             placeholder = {
                 Text(
                     text = placeholder,
@@ -779,6 +775,7 @@ fun DesignDropdownSelect(
                 onValueChange = {},
                 readOnly = true,
                 singleLine = true,
+                textStyle = TextStyle(fontSize = 14.sp),
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
                     .menuAnchor(
@@ -807,8 +804,7 @@ fun DesignDropdownSelect(
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = {
-                            Text(option, color = TextoEscuro) },
+                        text = { Text(option, color = TextoEscuro) },
                         onClick = {
                             onValueChanged(option)
                             expanded = false
