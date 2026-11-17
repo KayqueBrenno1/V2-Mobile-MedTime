@@ -16,17 +16,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.v2_medtime.R
-
-private val azulFundo = Color(0xFFECF4FF)
-private val azulClaro = Color(0xFFF3F8FF)
-private val azulCurva = Color(0xFFDDEBFF)
-private val azulBotao = Color(0xFF0B8DF2)
-private val azulTexto = Color(0xFF15183F)
+import com.example.v2_medtime.screens.components.BackgroundPadrao
 
 @Composable
 fun BoasVindasScreen(
@@ -35,57 +31,15 @@ fun BoasVindasScreen(
     onGoogle: () -> Unit = {},
     onEntrar: () -> Unit = {}
 ) {
+    val azulClaro = colorResource(R.color.azul_claro)
+    val azulCurva = colorResource(R.color.azul_curva)
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(azulFundo)
+            .background(colorResource(R.color.azul_fundo))
     ) {
-
-
-        Canvas(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            val largura = size.width
-            val altura = size.height
-
-            val curvaSuperior = Path().apply {
-                moveTo(0f, 0f)
-                lineTo(largura, 0f)
-                lineTo(largura, altura * 0.08f)
-
-                cubicTo(
-                    largura * 0.82f, altura * 0.23f,
-                    largura * 0.48f, altura * 0.23f,
-                    0f, altura * 0.40f
-                )
-
-                close()
-            }
-
-            drawPath(
-                path = curvaSuperior,
-                color = azulClaro
-            )
-
-            val curvaInferior = Path().apply {
-                moveTo(0f, altura * 0.95f)
-
-                cubicTo(
-                    largura * 0.30f, altura * 0.85f,
-                    largura * 0.62f, altura * 0.91f,
-                    largura, altura * 0.83f
-                )
-
-                lineTo(largura, altura)
-                lineTo(0f, altura)
-                close()
-            }
-
-            drawPath(
-                path = curvaInferior,
-                color = azulCurva
-            )
-        }
+        BackgroundPadrao()
 
         Column(
             modifier = Modifier
@@ -120,13 +74,14 @@ fun BoasVindasScreen(
                     .height(58.dp),
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = azulBotao
+                    containerColor = colorResource(R.color.azul_botao)
                 )
             ) {
                 Text(
                     text = "Começar",
                     fontSize = 19.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    color = colorResource(R.color.branco)
                 )
             }
 
@@ -146,7 +101,7 @@ fun BoasVindasScreen(
                     text = "ou",
                     modifier = Modifier.padding(horizontal = 15.dp),
                     fontSize = 17.sp,
-                    color = azulTexto
+                    color = colorResource(R.color.azul_texto)
                 )
 
                 HorizontalDivider(
@@ -182,7 +137,7 @@ fun BoasVindasScreen(
                 Text(
                     text = "Continuar com Google",
                     fontSize = 18.sp,
-                    color = azulTexto
+                    color = colorResource(R.color.azul_texto)
                 )
             }
 
@@ -197,7 +152,7 @@ fun BoasVindasScreen(
                 Text(
                     text = "Já tem uma conta?",
                     fontSize = 17.sp,
-                    color = azulTexto
+                    color = colorResource(R.color.azul_texto)
                 )
 
                 Spacer(
