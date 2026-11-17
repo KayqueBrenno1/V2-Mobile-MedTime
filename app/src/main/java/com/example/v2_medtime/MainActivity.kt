@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.example.v2_medtime.navigation.AppNavigation
+import com.example.v2_medtime.screens.auth.DadosPessoaisScreen
 import com.example.v2_medtime.ui.theme.V2MedTimeTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,7 +19,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             V2MedTimeTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AppNavigation(modifier = Modifier.padding(innerPadding))
+                    DadosPessoaisScreen(modifier = Modifier.padding(innerPadding))
                 }
             }
         }

@@ -68,7 +68,7 @@ fun BoasVindasScreen(
                 contentDescription = "Logo do MedTime",
                 modifier = Modifier
                     .fillMaxWidth(0.88f)
-                    .height(210.dp),
+                    .height(220.dp),
                 contentScale = ContentScale.Fit
             )
 
