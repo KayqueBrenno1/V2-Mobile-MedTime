@@ -40,7 +40,7 @@ fun EscolhaPerfilScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 28.dp)
         ) {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(45.dp))
 
             Text(
                 text = "MedTime",
@@ -49,7 +49,7 @@ fun EscolhaPerfilScreen(
                 color = colorResource(R.color.azul_texto)
             )
 
-            Spacer(modifier = Modifier.height(45.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             Text(
                 text = "Como você vai usar\no MedTime?",
@@ -59,7 +59,7 @@ fun EscolhaPerfilScreen(
                 color = colorResource(R.color.azul_texto)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(15.dp))
 
             Text(
                 text = "Escolha o seu perfil para continuar.",

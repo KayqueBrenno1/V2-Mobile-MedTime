@@ -32,7 +32,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -46,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import com.example.v2_medtime.R
 import com.example.v2_medtime.data.model.DadosPessoais
 import com.example.v2_medtime.screens.components.BackgroundPadrao
-import com.example.v2_medtime.screens.components.SeletorDataNascimento
 import com.example.v2_medtime.utils.FormatadorCampos
 
 @Composable
@@ -82,22 +81,6 @@ fun DadosPessoaisScreen(
         mutableStateOf("")
     }
 
-    var mostrarCalendario by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    if (mostrarCalendario) {
-        SeletorDataNascimento(
-            onDismiss = {
-                mostrarCalendario = false
-            },
-            onSelecionarData = { data ->
-                dataNascimento = data
-                mostrarCalendario = false
-            }
-        )
-    }
-
     val azulTexto = colorResource(R.color.azul_texto)
 
     Box(
@@ -115,13 +98,13 @@ fun DadosPessoaisScreen(
                 .imePadding()
                 .padding(horizontal = 28.dp)
         ) {
+            Spacer(modifier = Modifier.height(25.dp))
 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
-
                 Row(
                     modifier = Modifier
                         .clickable { onVoltar() }
@@ -221,19 +204,6 @@ fun DadosPessoaisScreen(
                             imageVector = Icons.Outlined.CalendarMonth,
                             contentDescription = null
                         )
-                    },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = {
-                                mostrarCalendario = true
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CalendarMonth,
-                                contentDescription = "Selecionar data de nascimento",
-                                tint = colorResource(R.color.azul_botao)
-                            )
-                        }
                     }
                 )
 
@@ -242,8 +212,13 @@ fun DadosPessoaisScreen(
                 // E-mail
                 CampoDadosPessoais(
                     valor = email,
-                    onValorChange = { email = it },
+                    onValorChange = { valor ->
+                        if (valor.length <= 255) {
+                            email = valor.filterNot { it.isWhitespace() }
+                        }
+                    },
                     titulo = "E-mail",
+                    placeholder = "exemplo@email.com",
                     keyboardType = KeyboardType.Email,
                     icone = {
                         Icon(
@@ -258,9 +233,13 @@ fun DadosPessoaisScreen(
                 // Telefone
                 CampoDadosPessoais(
                     valor = telefone,
-                    onValorChange = { telefone = it },
+                    onValorChange = { valor ->
+                        telefone = valor.filter { it.isDigit() }.take(11)
+                    },
                     titulo = "Telefone",
+                    placeholder = "(11) 99999-9999",
                     keyboardType = KeyboardType.Phone,
+                    visualTransformation = FormatadorCampos.telefoneVisualTransformation(),
                     icone = {
                         Icon(
                             imageVector = Icons.Outlined.Phone,
@@ -360,14 +339,13 @@ private fun CampoDadosPessoais(
     placeholder: String = "",
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    trailingIcon: @Composable (() -> Unit)? = null,
+    imeAction: ImeAction = ImeAction.Next,
     icone: @Composable () -> Unit
 ) {
     OutlinedTextField(
         value = valor,
         onValueChange = onValorChange,
         visualTransformation = visualTransformation,
-        trailingIcon = trailingIcon,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 68.dp),
@@ -389,9 +367,12 @@ private fun CampoDadosPessoais(
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         keyboardOptions = KeyboardOptions(
-            keyboardType = keyboardType
+            keyboardType = keyboardType,
+            imeAction = imeAction
         ),
         colors = OutlinedTextFieldDefaults.colors(
+            focusedPlaceholderColor = Color.Black.copy(alpha = 0.4f),
+            unfocusedPlaceholderColor = Color.Black.copy(alpha = 0.4f),
             focusedBorderColor = colorResource(R.color.azul_botao),
             unfocusedBorderColor = colorResource(R.color.azul_borda),
             focusedTextColor = colorResource(R.color.azul_texto),

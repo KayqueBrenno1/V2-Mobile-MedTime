@@ -111,6 +111,45 @@ object FormatadorCampos {
         }
     }
 
+    fun telefoneVisualTransformation(): VisualTransformation {
+        return VisualTransformation { text ->
+            val numeros = text.text.take(11)
+            val formatado = telefone(numeros)
+
+            val posicoesNumeros = mutableListOf<Int>()
+
+            formatado.forEachIndexed { index, char ->
+                if (char.isDigit()) {
+                    posicoesNumeros.add(index)
+                }
+            }
+
+            val offsetMapping = object : OffsetMapping {
+
+                override fun originalToTransformed(offset: Int): Int {
+                    val posicao = offset.coerceIn(0, numeros.length)
+
+                    return if (posicao == 0) {
+                        0
+                    } else {
+                        posicoesNumeros[posicao - 1] + 1
+                    }
+                }
+
+                override fun transformedToOriginal(offset: Int): Int {
+                    val posicao = offset.coerceIn(0, formatado.length)
+
+                    return posicoesNumeros.count { it < posicao }
+                }
+            }
+
+            TransformedText(
+                AnnotatedString(formatado),
+                offsetMapping
+            )
+        }
+    }
+
     fun dataParaExibicao(value: String): String {
         val partes = value.take(10).split("-")
 
