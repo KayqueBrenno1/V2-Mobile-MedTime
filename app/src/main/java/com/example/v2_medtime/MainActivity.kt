@@ -7,14 +7,15 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.healthsystem_medtime.screens.cuidador.MedicamentoScreen
+import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
+import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.ui.theme.V2MedTimeTheme
-import com.example.v2_medtime.ui.theme.auth.BoasVindasScreen
+import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,27 +26,28 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
                     val navController = rememberNavController()
+                    val medicamentoViewModel: MedicamentoViewModel = viewModel()
 
-                    MedicamentoScreen(modifier = Modifier.padding(innerPadding),
-                        navController = navController)
+                    NavHost(
+                        navController = navController,
+                        startDestination = "MedicamentoScreen",
+                        modifier = Modifier.padding(innerPadding)
+                    ) {
+                        composable("MedicamentoScreen") {
+                            MedicamentoScreen(
+                                navController = navController,
+                                viewModel = medicamentoViewModel
+                            )
+                        }
+                        composable("CadastroSucessoMedicamento") {
+                            CadastroSucessoMedicamentoScreen(
+                                navController = navController,
+                                viewModel = medicamentoViewModel
+                            )
+                        }
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Aqui é $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    V2MedTimeTheme {
-        Greeting("Android")
     }
 }
