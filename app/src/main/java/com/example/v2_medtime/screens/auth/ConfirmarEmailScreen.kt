@@ -1,5 +1,7 @@
 package com.example.v2_medtime.screens.auth
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -30,16 +33,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -47,6 +54,7 @@ import com.example.v2_medtime.R
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.viewmodel.ConfirmarEmailViewModel
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 @Composable
 fun ConfirmarEmailScreen(
@@ -64,19 +72,53 @@ fun ConfirmarEmailScreen(
     val azulBotao = colorResource(R.color.azul_botao)
     val azulBorda = colorResource(R.color.azul_borda)
 
-    LaunchedEffect(codigo) {
-        if (codigo.length == 6) {
-            onVerificar(codigo)
-        }
-    }
-
     val onVerificarAtual by rememberUpdatedState(onVerificar)
 
     LaunchedEffect(codigo) {
-        if (codigo.length == 6 && !confirmarEmailViewModel.carregando) {
-            delay(300)
+        if (codigo.length == 6) {
+            if (confirmarEmailViewModel.podeVerificarCodigo()) {
+                onVerificarAtual(codigo)
+            }
+        }
+    }
 
-            onVerificarAtual(codigo)
+    val codigoIncorreto = confirmarEmailViewModel.mensagemErro != null
+
+    val corBordaCodigo = if (codigoIncorreto)
+        Color.Red
+    else
+        colorResource(R.color.azul_borda)
+
+    val corTextoCodigo = if (codigoIncorreto)
+        Color.Red
+    else
+        colorResource(R.color.azul_texto)
+
+    val deslocamento = remember {
+        Animatable(0f)
+    }
+
+    val density = LocalDensity.current
+
+    LaunchedEffect(codigoIncorreto) {
+        if (codigoIncorreto) {
+            deslocamento.animateTo(
+                targetValue = 0f,
+                animationSpec = keyframes {
+                    durationMillis = 350
+
+                    0f at 0
+                    (-10f) at 50
+                    10f at 100
+                    (-8f) at 150
+                    8f at 200
+                    (-4f) at 250
+                    4f at 300
+                    0f at 350
+                }
+            )
+        } else {
+            deslocamento.snapTo(0f)
         }
     }
 
@@ -172,7 +214,16 @@ fun ConfirmarEmailScreen(
                 decorationBox = { innerTextField ->
                     Box {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .offset {
+                                    IntOffset(
+                                        x = with(density) {
+                                            deslocamento.value.dp.toPx()
+                                        }.roundToInt(),
+                                        y = 0
+                                    )
+                                },
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             repeat(6) { index ->
@@ -196,7 +247,13 @@ fun ConfirmarEmailScreen(
                                         color = androidx.compose.ui.graphics.Color.Transparent,
                                         border = androidx.compose.foundation.BorderStroke(
                                             width = if (selecionado) 2.dp else 1.dp,
-                                            color = if (selecionado) azulBotao else azulBorda
+                                            color = if (codigoIncorreto) {
+                                                corBordaCodigo
+                                            } else if (selecionado) {
+                                                azulBotao
+                                            } else {
+                                                azulBorda
+                                            }
                                         )
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
@@ -204,7 +261,7 @@ fun ConfirmarEmailScreen(
                                                 text = codigo.getOrNull(index)?.toString() ?: "",
                                                 fontSize = 24.sp,
                                                 fontWeight = FontWeight.Medium,
-                                                color = azulTexto,
+                                                color = corTextoCodigo,
                                                 textAlign = TextAlign.Center
                                             )
                                         }
@@ -221,6 +278,18 @@ fun ConfirmarEmailScreen(
                     }
                 }
             )
+
+            if (codigoIncorreto) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = confirmarEmailViewModel.mensagemErro ?: "",
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             if (confirmarEmailViewModel.carregando) {
                 Spacer(modifier = Modifier.height(24.dp))

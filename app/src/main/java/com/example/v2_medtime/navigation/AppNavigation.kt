@@ -19,7 +19,9 @@ import com.example.v2_medtime.screens.auth.DadosPessoaisScreen
 import com.example.v2_medtime.screens.auth.EscolhaPerfilScreen
 import com.example.v2_medtime.screens.auth.LoginScreen
 import com.example.v2_medtime.screens.auth.RecuperarSenhaScreen
+import com.example.v2_medtime.screens.auth.RedefinirSenhaScreen
 import com.example.v2_medtime.screens.auth.VerificarCodigoSenhaScreen
+import com.example.v2_medtime.viewmodel.ConfirmarEmailViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 
 @Composable
@@ -39,7 +41,7 @@ fun AppNavigation(
 
     NavHost(
         navController = navController,
-        startDestination = "boas_vindas"
+        startDestination = "redefinir_senha"
     ) {
         composable("boas_vindas") {
             BoasVindasScreen(
@@ -83,10 +85,13 @@ fun AppNavigation(
         }
 
         composable("confirmar_email") {
+            val confirmarEmailViewModel: ConfirmarEmailViewModel = viewModel()
+
             ConfirmarEmailScreen(
                 email = emailCadastro,
+                confirmarEmailViewModel = confirmarEmailViewModel,
                 onVerificar = { codigo ->
-                    // Futuramente, enviar o código para validação na API.
+                    // Futuramente, validar o código de confirmação pela API.
                 },
                 onReenviarCodigo = {
                     // Futuramente, solicitar um novo código à API.
@@ -144,17 +149,31 @@ fun AppNavigation(
         }
 
         composable("verificar_codigo_senha") {
+            val confirmarEmailViewModel: ConfirmarEmailViewModel = viewModel()
+
             VerificarCodigoSenhaScreen(
                 email = emailRecuperacao,
+                confirmarEmailViewModel = confirmarEmailViewModel,
                 onVerificar = { codigo ->
-                    // Futuramente, validar o código pela API.
-                    // Após a validação, abrir a tela de nova senha.
+                    // Futuramente, validar o código de recuperação pela API.
+                    // Somente após a validação, navegar para redefinir_senha.
                 },
                 onReenviarCodigo = {
-                    // Futuramente, solicitar um novo código pela API.
+                    // Futuramente, solicitar um novo código à API.
                 },
                 onVoltar = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        composable("redefinir_senha") {
+            RedefinirSenhaScreen(
+                onVoltar = {
+                    navController.popBackStack()
+                },
+                onRedefinirSenha = { novaSenha ->
+                    // Futuramente, enviar a nova senha para a API.
                 }
             )
         }

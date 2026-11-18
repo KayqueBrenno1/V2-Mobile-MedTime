@@ -27,11 +27,20 @@ class ConfirmarEmailViewModel : ViewModel() {
         codigo = ""
         mensagemErro = null
         emailConfirmado = false
+        carregando = false
+        ultimoCodigoVerificado = null
     }
 
     fun atualizarCodigo(novoCodigo: String) {
-        codigo = novoCodigo.filter { it.isDigit() }.take(6)
-        mensagemErro = null
+        val codigoFormatado = novoCodigo
+            .filter { it.isDigit() }
+            .take(6)
+
+        if (codigoFormatado != codigo) {
+            codigo = codigoFormatado
+            mensagemErro = null
+            ultimoCodigoVerificado = null
+        }
     }
 
     fun validarCodigo(): Boolean {
@@ -54,13 +63,29 @@ class ConfirmarEmailViewModel : ViewModel() {
     }
 
     fun registrarErro(mensagem: String) {
-        mensagemErro = mensagem
         carregando = false
+        mensagemErro = mensagem
     }
 
     fun registrarConfirmacao() {
         emailConfirmado = true
         mensagemErro = null
         carregando = false
+    }
+
+    private var ultimoCodigoVerificado: String? = null
+
+    fun podeVerificarCodigo(): Boolean {
+        if (codigo.length != 6 || carregando) {
+            return false
+        }
+
+        if (codigo == ultimoCodigoVerificado) {
+            return false
+        }
+
+        ultimoCodigoVerificado = codigo
+
+        return true
     }
 }
