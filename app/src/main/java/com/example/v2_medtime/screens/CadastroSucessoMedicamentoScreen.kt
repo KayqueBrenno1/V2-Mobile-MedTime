@@ -33,7 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.v2_medtime.model.MedicamentoRequest
+import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.screens.components.ResumoMedicamentoCard
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
@@ -171,7 +171,10 @@ fun CadastroSucessoMedicamentoScreen(
 
                 OutlinedButton(
                     onClick = {
-                        // Rota futura: navController.navigate("ListaMedicamentos")
+                        navController.navigate("agenda_medicamentos") {
+                            popUpTo("agenda_medicamentos") { inclusive = true }
+                            launchSingleTop = true
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()

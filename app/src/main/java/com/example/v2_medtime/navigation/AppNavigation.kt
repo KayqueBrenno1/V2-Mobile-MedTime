@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.v2_medtime.screens.AgendaMedicamentosScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
@@ -39,7 +40,7 @@ fun AppNavigation(
 
     NavHost(
         navController = navController,
-        startDestination = "boas_vindas"
+        startDestination = "agenda_medicamentos"
     ) {
         composable("boas_vindas") {
             BoasVindasScreen(
@@ -116,7 +117,10 @@ fun AppNavigation(
                     navController.popBackStack()
                 },
                 onEntrar = { emailCpf, senha ->
-                    // Futuramente, autenticar com a API.
+                    navController.navigate("agenda_medicamentos") {
+                        popUpTo("boas_vindas") { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
                 onEsqueceuSenha = {
                     navController.navigate("recuperar_senha")
@@ -156,6 +160,26 @@ fun AppNavigation(
                 onVoltar = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable("MedicamentoScreen") {
+            MedicamentoScreen(
+                navController = navController,
+                viewModel = medicamentoViewModel
+            )
+        }
+
+        composable("CadastroSucessoMedicamento") {
+            CadastroSucessoMedicamentoScreen(
+                navController = navController,
+                viewModel = medicamentoViewModel
+            )
+        }
+        composable("agenda_medicamentos") {
+            AgendaMedicamentosScreen(
+                navController = navController,
+                viewModel = medicamentoViewModel
             )
         }
 

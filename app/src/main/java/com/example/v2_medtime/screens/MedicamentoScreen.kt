@@ -68,7 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.v2_medtime.model.MedicamentoRequest
+import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 import okhttp3.MediaType.Companion.toMediaTypeOrNull

@@ -1,4 +1,4 @@
-package com.example.v2_medtime.model
+package com.example.v2_medtime.data.model
 
 data class MedicamentoRequest (
 
