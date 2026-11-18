@@ -24,8 +24,11 @@ import com.example.v2_medtime.screens.components.BackgroundPadrao
 fun EscolhaPerfilScreen(
     modifier: Modifier = Modifier,
     onPaciente: () -> Unit = {},
-    onCuidador: () -> Unit = {}
+    onCuidador: () -> Unit = {},
+    onVoltar: () -> Unit = {}
 ) {
+    val azulBorda = colorResource(R.color.azul_borda)
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -84,6 +87,26 @@ fun EscolhaPerfilScreen(
                 cuidador = true,
                 onClick = onCuidador
             )
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            OutlinedButton(
+                onClick = onVoltar,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp),
+                shape = RoundedCornerShape(50),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    azulBorda
+                )
+            ) {
+                Text(
+                    text = "Voltar",
+                    fontSize = 19.sp,
+                    color = colorResource(R.color.azul_entrar)
+                )
+            }
         }
     }
 }

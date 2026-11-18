@@ -21,13 +21,16 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.v2_medtime.R
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.viewmodel.ConfirmarEmailViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun ConfirmarEmailScreen(
@@ -50,6 +54,8 @@ fun ConfirmarEmailScreen(
     onVerificar: (String) -> Unit,
     onReenviarCodigo: () -> Unit,
     onVoltar: () -> Unit,
+    titulo: String = "Confirme seu e-mail",
+    mostrarIndicador: Boolean = true,
     confirmarEmailViewModel: ConfirmarEmailViewModel = viewModel()
 ) {
     val codigo = confirmarEmailViewModel.codigo
@@ -57,6 +63,22 @@ fun ConfirmarEmailScreen(
     val azulTexto = colorResource(R.color.azul_texto)
     val azulBotao = colorResource(R.color.azul_botao)
     val azulBorda = colorResource(R.color.azul_borda)
+
+    LaunchedEffect(codigo) {
+        if (codigo.length == 6) {
+            onVerificar(codigo)
+        }
+    }
+
+    val onVerificarAtual by rememberUpdatedState(onVerificar)
+
+    LaunchedEffect(codigo) {
+        if (codigo.length == 6 && !confirmarEmailViewModel.carregando) {
+            delay(300)
+
+            onVerificarAtual(codigo)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -73,43 +95,45 @@ fun ConfirmarEmailScreen(
                 .imePadding()
                 .padding(horizontal = 28.dp)
         ) {
-            Spacer(modifier = Modifier.height(95.dp))
+            Spacer(modifier = Modifier.height(60.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                for (etapa in 1..3) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .background(
+            if (mostrarIndicador) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    for (etapa in 1..3) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(
+                                    color = if (etapa <= 2) {
+                                        azulBotao
+                                    } else {
+                                        colorResource(R.color.azul_curva)
+                                    },
+                                    shape = RoundedCornerShape(50)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = etapa.toString(),
                                 color = if (etapa <= 2) {
-                                    azulBotao
+                                    colorResource(R.color.branco)
                                 } else {
-                                    colorResource(R.color.azul_curva)
+                                    azulTexto
                                 },
-                                shape = RoundedCornerShape(50)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = etapa.toString(),
-                            color = if (etapa <= 2) {
-                                colorResource(R.color.branco)
-                            } else {
-                                azulTexto
-                            },
-                            fontSize = 14.sp
-                        )
-                    }
+                                fontSize = 14.sp
+                            )
+                        }
 
-                    if (etapa < 3) {
-                        HorizontalDivider(
-                            modifier = Modifier.width(75.dp),
-                            color = azulBorda
-                        )
+                        if (etapa < 3) {
+                            HorizontalDivider(
+                                modifier = Modifier.width(90.dp),
+                                color = azulBorda
+                            )
+                        }
                     }
                 }
             }
@@ -117,7 +141,7 @@ fun ConfirmarEmailScreen(
             Spacer(modifier = Modifier.height(65.dp))
 
             Text(
-                text = "Confirme seu e-mail",
+                text = titulo,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = azulTexto
@@ -136,8 +160,8 @@ fun ConfirmarEmailScreen(
 
             BasicTextField(
                 value = codigo,
-                onValueChange = { valor ->
-                    confirmarEmailViewModel.atualizarCodigo(valor)
+                onValueChange = { novoCodigo ->
+                    confirmarEmailViewModel.atualizarCodigo(novoCodigo)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -198,6 +222,23 @@ fun ConfirmarEmailScreen(
                 }
             )
 
+            if (confirmarEmailViewModel.carregando) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                CircularProgressIndicator(
+                    color = colorResource(R.color.azul_botao),
+                    modifier = Modifier.size(30.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Verificando código...",
+                    color = colorResource(R.color.azul_texto),
+                    fontSize = 16.sp
+                )
+            }
+
             Spacer(modifier = Modifier.height(34.dp))
 
             Text(
@@ -211,31 +252,7 @@ fun ConfirmarEmailScreen(
                 color = colorResource(R.color.azul_entrar)
             )
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                onClick = {
-                    if (confirmarEmailViewModel.validarCodigo()) {
-                        onVerificar(codigo)
-                    }
-                },
-                enabled = codigo.length == 6,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = azulBotao
-                )
-            ) {
-                Text(
-                    text = "Verificar",
-                    fontSize = 19.sp,
-                    color = colorResource(R.color.branco)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(150.dp))
 
             OutlinedButton(
                 onClick = onVoltar,

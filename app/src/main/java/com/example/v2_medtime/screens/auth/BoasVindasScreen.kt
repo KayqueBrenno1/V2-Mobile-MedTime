@@ -95,7 +95,7 @@ fun BoasVindasScreen(
             }
 
             Spacer(
-                modifier = Modifier.height(20.dp)
+                modifier = Modifier.height(10.dp)
             )
 
             Row(
@@ -120,7 +120,7 @@ fun BoasVindasScreen(
             }
 
             Spacer(
-                modifier = Modifier.height(20.dp)
+                modifier = Modifier.height(10.dp)
             )
 
 

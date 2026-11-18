@@ -32,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -82,6 +83,7 @@ fun DadosPessoaisScreen(
     }
 
     val azulTexto = colorResource(R.color.azul_texto)
+    val azulBorda = colorResource(R.color.azul_borda)
 
     Box(
         modifier = modifier
@@ -105,30 +107,7 @@ fun DadosPessoaisScreen(
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
-                Row(
-                    modifier = Modifier
-                        .clickable { onVoltar() }
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBackIos,
-                        contentDescription = null,
-                        tint = azulTexto,
-                        modifier = Modifier.size(20.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "Voltar",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = azulTexto
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(25.dp))
+                Spacer(modifier = Modifier.height(35.dp))
 
                 IndicadorEtapasCadastro(
                     etapaAtual = 1
@@ -279,6 +258,26 @@ fun DadosPessoaisScreen(
                     fontSize = 19.sp,
                     fontWeight = FontWeight.Medium,
                     color = colorResource(R.color.branco)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedButton(
+                onClick = onVoltar,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp),
+                shape = RoundedCornerShape(50),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    azulBorda
+                )
+            ) {
+                Text(
+                    text = "Voltar",
+                    fontSize = 19.sp,
+                    color = colorResource(R.color.azul_entrar)
                 )
             }
 
