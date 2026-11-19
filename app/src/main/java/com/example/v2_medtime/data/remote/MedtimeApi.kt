@@ -7,7 +7,6 @@ import retrofit2.http.Headers
 import retrofit2.http.POST
 
 interface MedTimeApi {
-
     @POST("v1/healthSystem/medtime/codigo_verificacao_email/gerar")
     suspend fun gerarCodigoVerificacaoEmail(
         @Body dados: JsonObject
@@ -16,6 +15,24 @@ interface MedTimeApi {
     @Headers("Content-Type: application/json")
     @POST("v1/healthSystem/medtime/usuario")
     suspend fun cadastrarUsuario(
+        @Body dados: JsonObject
+    ): Response<JsonObject>
+
+    @Headers("Content-Type: application/json")
+    @POST("v1/healthSystem/medtime/usuario/login")
+    suspend fun autenticarLogin(
+        @Body dados: JsonObject
+    ): Response<JsonObject>
+
+    @Headers("Content-Type: application/json")
+    @POST("v1/healthSystem/medtime/usuario/google/login")
+    suspend fun autenticarGoogle(
+        @Body dados: JsonObject
+    ): Response<JsonObject>
+
+    @Headers("Content-Type: application/json")
+    @POST("v1/healthSystem/medtime/usuario/google/cadastro")
+    suspend fun cadastrarUsuarioGoogle(
         @Body dados: JsonObject
     ): Response<JsonObject>
 }

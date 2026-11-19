@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">V2-MedTime</string>
+    <string name="app_name">MedTime</string>
+    <string name="google_web_client_id">1035255567537-aip2b1uj74o4schskud69qiocb1o9hae.apps.googleusercontent.com</string>
 </resources>

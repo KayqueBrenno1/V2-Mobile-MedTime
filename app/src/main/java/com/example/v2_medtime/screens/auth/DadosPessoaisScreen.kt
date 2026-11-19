@@ -63,14 +63,21 @@ import com.example.v2_medtime.utils.Validadores
 @Composable
 fun DadosPessoaisScreen(
     modifier: Modifier = Modifier,
+    cadastroGoogle: Boolean = false,
+    nomeGoogle: String = "",
+    emailGoogle: String = "",
     onVoltar: () -> Unit = {},
     onProximo: (DadosPessoais) -> Unit = {}
 ) {
     val density = LocalDensity.current
     val tecladoAberto = WindowInsets.ime.getBottom(density) > 0
 
-    var nome by rememberSaveable {
-        mutableStateOf("")
+    var nome by rememberSaveable(cadastroGoogle, nomeGoogle) {
+        mutableStateOf(if (cadastroGoogle) nomeGoogle else "")
+    }
+
+    var email by rememberSaveable(cadastroGoogle, emailGoogle) {
+        mutableStateOf(if (cadastroGoogle) emailGoogle else "")
     }
 
     var cpf by rememberSaveable {
@@ -78,10 +85,6 @@ fun DadosPessoaisScreen(
     }
 
     var dataNascimento by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var email by rememberSaveable {
         mutableStateOf("")
     }
 
@@ -120,157 +123,154 @@ fun DadosPessoaisScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Spacer(
-                    modifier = Modifier.height(
-                        if (tecladoAberto) 16.dp else 35.dp
-                    )
+            Spacer(
+                modifier = Modifier.height(
+                    if (tecladoAberto) 16.dp else 35.dp
                 )
+            )
 
+            if (!cadastroGoogle) {
                 IndicadorEtapasCadastro(
                     etapaAtual = 1
                 )
-
-                Spacer(modifier = Modifier.height(38.dp))
-
-                Text(
-                    text = "Dados pessoais",
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = azulTexto
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Informe seus dados para criar sua conta.",
-                    fontSize = 17.sp,
-                    color = colorResource(R.color.azul_texto)
-                )
-
-                Spacer(modifier = Modifier.height(25.dp))
-
-                // Nome completo
-                CampoDadosPessoais(
-                    valor = nome,
-                    onValorChange = { nome = it },
-                    titulo = "Nome completo",
-                    placeholder = "Maria Silva",
-                    icone = {
-                        Icon(
-                            imageVector = Icons.Outlined.PersonOutline,
-                            contentDescription = null
-                        )
-                    },
-                    mensagemErro = if (erroNome) {
-                        "Informe seu nome completo."
-                    } else null,
-                )
-
-
-
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // CPF
-                CampoDadosPessoais(
-                    valor = cpf,
-                    onValorChange = { valor ->
-                        cpf = valor.filter { it.isDigit() }.take(11)
-                    },
-                    titulo = "CPF (Opcional)",
-                    keyboardType = KeyboardType.Number,
-                    visualTransformation = FormatadorCampos.cpfVisualTransformation(),
-                    icone = {
-                        Icon(
-                            imageVector = Icons.Outlined.Badge,
-                            contentDescription = null
-                        )
-                    },
-                    mensagemErro = if (erroCpf) {
-                        "Informe um CPF válido."
-                    } else null,
-                )
-
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Data de nascimento
-                CampoDadosPessoais(
-                    valor = dataNascimento,
-                    onValorChange = { valor ->
-                        dataNascimento = valor.filter { it.isDigit() }.take(8)
-                    },
-                    titulo = "Data de nascimento",
-                    placeholder = "DD/MM/AAAA",
-                    keyboardType = KeyboardType.Number,
-                    visualTransformation = FormatadorCampos.dataVisualTransformation(),
-                    icone = {
-                        Icon(
-                            imageVector = Icons.Outlined.CalendarMonth,
-                            contentDescription = null
-                        )
-                    },
-                    mensagemErro = if (erroData) {
-                        "Informe uma data de nascimento válida."
-                    } else null,
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // E-mail
-                CampoDadosPessoais(
-                    valor = email,
-                    onValorChange = { valor ->
-                        if (valor.length <= 255) {
-                            email = valor.filterNot { it.isWhitespace() }
-                        }
-                    },
-                    titulo = "E-mail",
-                    placeholder = "exemplo@email.com",
-                    keyboardType = KeyboardType.Email,
-                    icone = {
-                        Icon(
-                            imageVector = Icons.Outlined.Email,
-                            contentDescription = null
-                        )
-                    },
-                    mensagemErro = if (erroEmail) {
-                        if (email.isBlank()) "Informe seu e-mail."
-                        else "Informe um e-mail válido."
-                    } else null,
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Telefone
-                CampoDadosPessoais(
-                    valor = telefone,
-                    onValorChange = { valor ->
-                        telefone = valor.filter { it.isDigit() }.take(11)
-                    },
-                    titulo = "Telefone (Opcional)",
-                    placeholder = "(11) 99999-9999",
-                    keyboardType = KeyboardType.Phone,
-                    visualTransformation = FormatadorCampos.telefoneVisualTransformation(),
-                    icone = {
-                        Icon(
-                            imageVector = Icons.Outlined.Phone,
-                            contentDescription = null
-                        )
-                    },
-                    mensagemErro = if (erroTelefone) {
-                        "Informe um telefone válido."
-                    } else null,
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
             }
 
+            Spacer(modifier = Modifier.height(38.dp))
+
+            Text(
+                text = "Dados pessoais",
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold,
+                color = azulTexto
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Informe seus dados para criar sua conta.",
+                fontSize = 17.sp,
+                color = colorResource(R.color.azul_texto)
+            )
+
+            Spacer(modifier = Modifier.height(25.dp))
+
+            // Nome completo
+            CampoDadosPessoais(
+                valor = nome,
+                onValorChange = { nome = it },
+                titulo = "Nome completo",
+                placeholder = "Maria Silva",
+                icone = {
+                    Icon(
+                        imageVector = Icons.Outlined.PersonOutline,
+                        contentDescription = null
+                    )
+                },
+                mensagemErro = if (erroNome) {
+                    "Informe seu nome completo."
+                } else null,
+                habilitado = !cadastroGoogle
+            )
+
+
+
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // CPF
+            CampoDadosPessoais(
+                valor = cpf,
+                onValorChange = { valor ->
+                    cpf = valor.filter { it.isDigit() }.take(11)
+                },
+                titulo = "CPF (Opcional)",
+                keyboardType = KeyboardType.Number,
+                visualTransformation = FormatadorCampos.cpfVisualTransformation(),
+                icone = {
+                    Icon(
+                        imageVector = Icons.Outlined.Badge,
+                        contentDescription = null
+                    )
+                },
+                mensagemErro = if (erroCpf) {
+                    "Informe um CPF válido."
+                } else null,
+            )
+
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Data de nascimento
+            CampoDadosPessoais(
+                valor = dataNascimento,
+                onValorChange = { valor ->
+                    dataNascimento = valor.filter { it.isDigit() }.take(8)
+                },
+                titulo = "Data de nascimento",
+                placeholder = "DD/MM/AAAA",
+                keyboardType = KeyboardType.Number,
+                visualTransformation = FormatadorCampos.dataVisualTransformation(),
+                icone = {
+                    Icon(
+                        imageVector = Icons.Outlined.CalendarMonth,
+                        contentDescription = null
+                    )
+                },
+                mensagemErro = if (erroData) {
+                    "Informe uma data de nascimento válida."
+                } else null,
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // E-mail
+            CampoDadosPessoais(
+                valor = email,
+                onValorChange = { valor ->
+                    if (valor.length <= 255) {
+                        email = valor.filterNot { it.isWhitespace() }
+                    }
+                },
+                titulo = "E-mail",
+                placeholder = "exemplo@email.com",
+                keyboardType = KeyboardType.Email,
+                icone = {
+                    Icon(
+                        imageVector = Icons.Outlined.Email,
+                        contentDescription = null
+                    )
+                },
+                mensagemErro = if (erroEmail) {
+                    if (email.isBlank()) "Informe seu e-mail."
+                    else "Informe um e-mail válido."
+                } else null,
+                habilitado = !cadastroGoogle
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Telefone
+            CampoDadosPessoais(
+                valor = telefone,
+                onValorChange = { valor ->
+                    telefone = valor.filter { it.isDigit() }.take(11)
+                },
+                titulo = "Telefone (Opcional)",
+                placeholder = "(11) 99999-9999",
+                keyboardType = KeyboardType.Phone,
+                visualTransformation = FormatadorCampos.telefoneVisualTransformation(),
+                icone = {
+                    Icon(
+                        imageVector = Icons.Outlined.Phone,
+                        contentDescription = null
+                    )
+                },
+                mensagemErro = if (erroTelefone) {
+                    "Informe um telefone válido."
+                } else null,
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
             Spacer(modifier = Modifier.height(12.dp))
 
             if (!tecladoAberto) {
@@ -306,7 +306,7 @@ fun DadosPessoaisScreen(
                     )
                 ) {
                     Text(
-                        text = "Próximo",
+                        text = if (cadastroGoogle) "Concluir cadastro" else "Próximo",
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Medium,
                         color = colorResource(R.color.branco)
@@ -393,6 +393,7 @@ private fun CampoDadosPessoais(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     imeAction: ImeAction = ImeAction.Next,
     mensagemErro: String? = null,
+    habilitado: Boolean = true,
     icone: @Composable () -> Unit
 ) {
     OutlinedTextField(
@@ -400,6 +401,7 @@ private fun CampoDadosPessoais(
         onValueChange = onValorChange,
         isError = mensagemErro != null,
         visualTransformation = visualTransformation,
+        readOnly = !habilitado,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 68.dp),

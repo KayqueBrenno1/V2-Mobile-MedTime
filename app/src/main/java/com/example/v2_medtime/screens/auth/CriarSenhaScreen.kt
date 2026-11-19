@@ -72,15 +72,13 @@ fun CriarSenhaScreen(
                 .imePadding()
                 .padding(horizontal = 28.dp)
         ) {
-            Spacer(modifier = Modifier.height(25.dp))
+            Spacer(modifier = Modifier.height(35.dp))
 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
-                Spacer(modifier = Modifier.height(35.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
