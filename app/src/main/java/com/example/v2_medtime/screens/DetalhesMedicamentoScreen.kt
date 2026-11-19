@@ -66,9 +66,15 @@ fun DetalhesMedicamentoScreen(
     val item = viewModel.buscarPorId(medicamentoId)
 
     if (item == null) {
-
-        LaunchedEffect(Unit) {
-            navController.popBackStack("agenda_medicamentos", inclusive = false)
+        androidx.compose.runtime.LaunchedEffect(medicamentoId) {
+            if (navController.previousBackStackEntry != null) {
+                navController.popBackStack()
+            } else {
+                navController.navigate("inicio") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
         }
         return
     }
