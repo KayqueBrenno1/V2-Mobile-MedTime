@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,7 +28,6 @@ import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,7 +35,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,7 +69,6 @@ fun EscolhaCadastroMedicamentoScreen(
 ) {
     val context = LocalContext.current
     var modoSelecionado by remember { mutableStateOf(ModoCadastro.MANUAL) }
-    var mostrarResultadoOcr by remember { mutableStateOf(false) }
 
     val azulPrincipal = Color(0xFF0077D7)
     val azulIcone = Color(0xFF1592D0)
@@ -92,9 +91,12 @@ fun EscolhaCadastroMedicamentoScreen(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { sucesso ->
             if (sucesso && receitaFile.exists()) {
-                viewModel.processarReceitaOcr(receitaFile) { listaEncontrada ->
-                    if (listaEncontrada.isNotEmpty()) {
-                        mostrarResultadoOcr = true
+                viewModel.processarReceitaOcr(
+                    imagemReceita = receitaFile,
+                    limparAnteriores = true
+                ) {
+                    if (viewModel.remediosIdentificadosOcr.isNotEmpty()) {
+                        navController.navigate("medicamentos_identificados")
                     } else {
                         Toast.makeText(
                             context,
@@ -117,7 +119,9 @@ fun EscolhaCadastroMedicamentoScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+                .navigationBarsPadding()
+                .statusBarsPadding(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
@@ -261,6 +265,7 @@ fun EscolhaCadastroMedicamentoScreen(
                         ModoCadastro.MANUAL -> {
                             navController.navigate("MedicamentoScreen")
                         }
+
                         ModoCadastro.OCR -> {
                             cameraOcrLauncher.launch(receitaUri)
                         }
@@ -299,78 +304,27 @@ fun EscolhaCadastroMedicamentoScreen(
         }
 
         // Modal de Revisão dos Medicamentos Retornados pelo OCR + IA
-        if (mostrarResultadoOcr) {
-            AlertDialog(
-                onDismissRequest = { mostrarResultadoOcr = false },
-                title = {
-                    Text(
-                        text = "Receita lida com sucesso!",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Encontramos ${viewModel.remediosExtraidosOcr.size} medicamento(s) na receita:",
-                            fontSize = 14.sp,
-                            color = textoSecundario
-                        )
-                        viewModel.remediosExtraidosOcr.forEach { med ->
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFF3F8FD),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(
-                                        text = "${med.nome} ${med.concentracao}${med.unidadeMedida}",
-                                        fontWeight = FontWeight.Bold,
-                                        color = textoEscuro,
-                                        fontSize = 15.sp
-                                    )
-                                    Text(
-                                        text = "${med.dose} ${med.tipoMedicamento.lowercase()} • A cada ${med.frequencia} ${med.intervaloDosagem}(s)",
-                                        color = textoSecundario,
-                                        fontSize = 13.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            mostrarResultadoOcr = false
-                            viewModel.salvarTodosExtraidosOcr {
-                                Toast.makeText(
-                                    context,
-                                    "Medicamentos da receita adicionados!",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                navController.navigate("agenda_medicamentos") {
-                                    popUpTo("agenda_medicamentos") { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = azulPrincipal)
+        val cameraOcrLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicture(),
+            onResult = { sucesso ->
+                if (sucesso && receitaFile.exists()) {
+                    viewModel.processarReceitaOcr(
+                        imagemReceita = receitaFile,
+                        limparAnteriores = true
                     ) {
-                        Text("Adicionar todos", color = Color.White)
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            mostrarResultadoOcr = false
-                            navController.navigate("MedicamentoScreen")
+                        if (viewModel.remediosIdentificadosOcr.isNotEmpty()) {
+                            navController.navigate("medicamentos_identificados")
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Nenhum medicamento identificado na receita.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
-                    ) {
-                        Text("Cadastrar manual")
                     }
                 }
-            )
-        }
+            }
+        )
     }
 }
 

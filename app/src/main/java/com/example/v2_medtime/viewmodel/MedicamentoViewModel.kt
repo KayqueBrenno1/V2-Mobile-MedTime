@@ -23,18 +23,19 @@ data class MedicamentoCadastrado(
     val id: Long = System.nanoTime(),
     val dados: MedicamentoRequest,
     val imagemUri: Uri? = null,
-    val imagemUrlRemota: String? = null, // Pronto para receber a URL da foto vinda da API
+    val imagemUrlRemota: String? = null,
     val status: StatusMedicamento = StatusMedicamento.ATIVO
+)
+
+data class ItemOcrIdentificado(
+    val idTemporario: Long = System.nanoTime(),
+    val dados: MedicamentoRequest,
+    val selecionado: Boolean = true
 )
 
 class MedicamentoViewModel(
     private val repository: MedicamentoRepository = FakeMedicamentoRepository()
 ) : ViewModel() {
-
-    var isEscaneandoOcr by mutableStateOf(false)
-        private set
-
-    val remediosExtraidosOcr = mutableStateListOf<MedicamentoRequest>()
 
     var ultimoMedicamento by mutableStateOf<MedicamentoCadastrado?>(null)
         private set
@@ -46,6 +47,14 @@ class MedicamentoViewModel(
 
     var erroMensagem by mutableStateOf<String?>(null)
         private set
+
+    // ==========================================================
+    // ESTADOS DO FLUXO DE OCR + IA
+    // ==========================================================
+    var isEscaneandoOcr by mutableStateOf(false)
+        private set
+
+    val remediosIdentificadosOcr = mutableStateListOf<ItemOcrIdentificado>()
 
     init {
         carregarMedicamentos()
@@ -165,18 +174,28 @@ class MedicamentoViewModel(
         }
     }
 
+    // ==========================================================
+    // MÉTODOS DO FLUXO DE OCR + IA (MÚLTIPLAS RECEITAS E EDIÇÃO)
+    // ==========================================================
     fun processarReceitaOcr(
         imagemReceita: File,
-        onSucesso: (List<MedicamentoRequest>) -> Unit
+        limparAnteriores: Boolean = false,
+        onSucesso: () -> Unit = {}
     ) {
         viewModelScope.launch {
             isEscaneandoOcr = true
             erroMensagem = null
             repository.escanearReceitaOcr(imagemReceita)
                 .onSuccess { listaExtraida ->
-                    remediosExtraidosOcr.clear()
-                    remediosExtraidosOcr.addAll(listaExtraida)
-                    onSucesso(listaExtraida)
+                    if (limparAnteriores) {
+                        remediosIdentificadosOcr.clear()
+                    }
+                    listaExtraida.forEach { request ->
+                        remediosIdentificadosOcr.add(
+                            ItemOcrIdentificado(dados = request, selecionado = true)
+                        )
+                    }
+                    onSucesso()
                 }
                 .onFailure { erro ->
                     erroMensagem = erro.message ?: "Não foi possível ler a receita"
@@ -185,20 +204,42 @@ class MedicamentoViewModel(
         }
     }
 
-    fun salvarTodosExtraidosOcr(onConcluido: () -> Unit) {
+    fun alternarSelecaoOcr(idTemporario: Long) {
+        val index = remediosIdentificadosOcr.indexOfFirst { it.idTemporario == idTemporario }
+        if (index != -1) {
+            val atual = remediosIdentificadosOcr[index]
+            remediosIdentificadosOcr[index] = atual.copy(selecionado = !atual.selecionado)
+        }
+    }
+
+    fun buscarItemOcrPorId(idTemporario: Long): ItemOcrIdentificado? {
+        return remediosIdentificadosOcr.find { it.idTemporario == idTemporario }
+    }
+
+    fun atualizarItemOcr(idTemporario: Long, novosDados: MedicamentoRequest) {
+        val index = remediosIdentificadosOcr.indexOfFirst { it.idTemporario == idTemporario }
+        if (index != -1) {
+            val atual = remediosIdentificadosOcr[index]
+            remediosIdentificadosOcr[index] = atual.copy(dados = novosDados)
+        }
+    }
+
+    fun cadastrarSelecionadosOcr(onConcluido: () -> Unit) {
+        val selecionados = remediosIdentificadosOcr.filter { it.selecionado }
+        if (selecionados.isEmpty()) return
+
         viewModelScope.launch {
             isLoading = true
-            remediosExtraidosOcr.forEach { request ->
-                repository.cadastrarMedicamento(request, null, null)
+            selecionados.forEach { item ->
+                repository.cadastrarMedicamento(item.dados, null, null)
                     .onSuccess { novoItem ->
                         ultimoMedicamento = novoItem
                         listaMedicamentos.add(0, novoItem)
                     }
             }
-            remediosExtraidosOcr.clear()
+            remediosIdentificadosOcr.clear()
             isLoading = false
             onConcluido()
         }
     }
-
 }

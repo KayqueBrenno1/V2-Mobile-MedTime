@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -106,15 +108,20 @@ fun MedicamentoScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
     viewModel: MedicamentoViewModel,
-    medicamentoId: Long? = null
+    medicamentoId: Long? = null,
+    ocrTempId: Long? = null
 ) {
+
     val context = LocalContext.current
 
     // Verifica se a tela foi aberta no modo Edição ou Novo Cadastro
     val itemParaEditar = remember(medicamentoId) {
         medicamentoId?.let { viewModel.buscarPorId(it) }
     }
-    val isEdicao = itemParaEditar != null
+    val itemOcrParaEditar = remember(ocrTempId) {
+        ocrTempId?.let { viewModel.buscarItemOcrPorId(it) }
+    }
+    val isEdicao = itemParaEditar != null || itemOcrParaEditar != null
 
     // Captura de Imagem via FileProvider
     val photoFile = remember { File(context.cacheDir, "camera_foto_${System.currentTimeMillis()}.jpg") }
@@ -150,10 +157,12 @@ fun MedicamentoScreen(
     // Estado do Formulário (pré-preenchido se for edição)
     var estadoFormulario by remember {
         mutableStateOf(
-            itemParaEditar?.dados ?: MedicamentoRequest(
-                unidadeMedida = "mg",
-                tipoMedicamento = "Comprimido"
-            )
+            itemParaEditar?.dados
+                ?: itemOcrParaEditar?.dados
+                ?: MedicamentoRequest(
+                    unidadeMedida = "mg",
+                    tipoMedicamento = "Comprimido"
+                )
         )
     }
     var camposComErro by remember { mutableStateOf(setOf<String>()) }
@@ -176,6 +185,8 @@ fun MedicamentoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
@@ -560,7 +571,13 @@ fun MedicamentoScreen(
                             }
                         }
 
-                        if (isEdicao && medicamentoId != null) {
+                        if (itemOcrParaEditar != null && ocrTempId != null) {
+                            // 1. Edição de item extraído pelo OCR (antes de salvar na agenda)
+                            viewModel.atualizarItemOcr(ocrTempId, estadoFormulario)
+                            Toast.makeText(context, "Item atualizado na lista!", Toast.LENGTH_SHORT).show()
+                            navController.popBackStack()
+                        } else if (itemParaEditar != null && medicamentoId != null) {
+                            // 2. Edição de medicamento já cadastrado na agenda
                             viewModel.atualizarMedicamento(
                                 id = medicamentoId,
                                 request = estadoFormulario,
@@ -572,6 +589,7 @@ fun MedicamentoScreen(
                                 }
                             )
                         } else {
+                            // 3. Novo cadastro manual
                             viewModel.registrarMedicamento(
                                 request = estadoFormulario,
                                 imagemFile = arquivoImagem,

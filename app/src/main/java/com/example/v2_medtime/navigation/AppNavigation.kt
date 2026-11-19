@@ -17,6 +17,7 @@ import com.example.v2_medtime.screens.EscolhaCadastroMedicamentoScreen
 import com.example.v2_medtime.screens.EstoqueMedicamentoScreen
 import com.example.v2_medtime.screens.HistoricoScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
+import com.example.v2_medtime.screens.MedicamentosIdentificadosScreen
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
 import com.example.v2_medtime.screens.auth.CadastroRealizadoScreen
 import com.example.v2_medtime.screens.auth.ConfirmarEmailScreen
@@ -249,6 +250,22 @@ fun AppNavigation(
             EscolhaCadastroMedicamentoScreen(
                 navController = navController,
                 viewModel = medicamentoViewModel
+            )
+        }
+
+        composable("medicamentos_identificados") {
+            MedicamentosIdentificadosScreen(
+                navController = navController,
+                viewModel = medicamentoViewModel
+            )
+        }
+
+        composable("editar_ocr/{ocrId}") { backStackEntry ->
+            val ocrId = backStackEntry.arguments?.getString("ocrId")?.toLongOrNull()
+            MedicamentoScreen(
+                navController = navController,
+                viewModel = medicamentoViewModel,
+                ocrTempId = ocrId
             )
         }
 
