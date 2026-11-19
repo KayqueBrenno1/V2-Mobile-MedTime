@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -68,12 +71,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.v2_medtime.model.MedicamentoRequest
+import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 
@@ -107,13 +107,25 @@ fun validarCampos(estado: MedicamentoRequest): Set<String> {
 fun MedicamentoScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    viewModel: MedicamentoViewModel
+    viewModel: MedicamentoViewModel,
+    medicamentoId: Long? = null,
+    ocrTempId: Long? = null
 ) {
+
     val context = LocalContext.current
+
+    // Verifica se a tela foi aberta no modo Edição ou Novo Cadastro
+    val itemParaEditar = remember(medicamentoId) {
+        medicamentoId?.let { viewModel.buscarPorId(it) }
+    }
+    val itemOcrParaEditar = remember(ocrTempId) {
+        ocrTempId?.let { viewModel.buscarItemOcrPorId(it) }
+    }
+    val isEdicao = itemParaEditar != null || itemOcrParaEditar != null
 
     // Captura de Imagem via FileProvider
     val photoFile = remember { File(context.cacheDir, "camera_foto_${System.currentTimeMillis()}.jpg") }
-    var imagemRemedioUri by remember { mutableStateOf<Uri?>(null) }
+    var imagemRemedioUri by remember { mutableStateOf<Uri?>(itemParaEditar?.imagemUri) }
     val cameraImagemUri = remember {
         FileProvider.getUriForFile(
             context,
@@ -142,13 +154,15 @@ fun MedicamentoScreen(
         is24Hour = true
     )
 
-    // Estado do Formulário
+    // Estado do Formulário (pré-preenchido se for edição)
     var estadoFormulario by remember {
         mutableStateOf(
-            MedicamentoRequest(
-                unidadeMedida = "mg",
-                tipoMedicamento = "Comprimido"
-            )
+            itemParaEditar?.dados
+                ?: itemOcrParaEditar?.dados
+                ?: MedicamentoRequest(
+                    unidadeMedida = "mg",
+                    tipoMedicamento = "Comprimido"
+                )
         )
     }
     var camposComErro by remember { mutableStateOf(setOf<String>()) }
@@ -165,13 +179,14 @@ fun MedicamentoScreen(
             .fillMaxSize()
             .background(FundoTela)
     ) {
-        // Seu componente oficial de fundo ondulado
         BackgroundPadrao()
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .statusBarsPadding()
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
@@ -201,7 +216,7 @@ fun MedicamentoScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Preencha as informações do medicamento",
+                text = if (isEdicao) "Edite as informações do medicamento" else "Preencha as informações do medicamento",
                 color = TextoSecundario,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
@@ -223,7 +238,9 @@ fun MedicamentoScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Seletor de Foto do Medicamento
+                    // Seletor de Foto do Medicamento (suporta URI local ou URL remota da API)
+                    val modeloImagem: Any? = imagemRemedioUri ?: itemParaEditar?.imagemUrlRemota
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -242,9 +259,9 @@ fun MedicamentoScreen(
                                 .border(1.dp, BordaInput, RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (imagemRemedioUri != null) {
+                            if (modeloImagem != null) {
                                 AsyncImage(
-                                    model = imagemRemedioUri,
+                                    model = modeloImagem,
                                     contentDescription = "Foto do medicamento",
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
@@ -263,13 +280,13 @@ fun MedicamentoScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (imagemRemedioUri != null) "Foto selecionada" else "Foto do medicamento",
+                                text = if (modeloImagem != null) "Foto selecionada" else "Foto do medicamento",
                                 color = TextoEscuro,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
                             Text(
-                                text = if (imagemRemedioUri != null) "Toque para alterar a imagem" else "Toque para tirar foto ou abrir galeria",
+                                text = if (modeloImagem != null) "Toque para alterar a imagem" else "Toque para tirar foto ou abrir galeria",
                                 color = TextoSecundario,
                                 fontSize = 12.sp
                             )
@@ -533,55 +550,87 @@ fun MedicamentoScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botão Finalizar -> Salva no ViewModel e vai para Tela de Sucesso
+            // Botão Finalizar (Cadastro ou Edição via Repository)
             Button(
                 onClick = {
                     val errosEncontrados = validarCampos(estadoFormulario)
                     camposComErro = errosEncontrados
 
                     if (errosEncontrados.isEmpty()) {
+                        var arquivoImagem: File? = null
+
                         imagemRemedioUri?.let { uriSegura ->
                             try {
-                                val tempFile = File(context.cacheDir, "imagem_upload_temp.jpg")
+                                val tempFile = File(context.cacheDir, "imagem_upload_${System.currentTimeMillis()}.jpg")
                                 context.contentResolver.openInputStream(uriSegura)?.use { inputStream ->
                                     FileOutputStream(tempFile).use { outputStream -> inputStream.copyTo(outputStream) }
                                 }
-                                val requestFile = tempFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
-                                val body = MultipartBody.Part.createFormData("imagem_medicamento", tempFile.name, requestFile)
-                                println("Arquivo convertido com sucesso: ${tempFile.absolutePath}")
+                                arquivoImagem = tempFile
                             } catch (error: Exception) {
                                 println("Erro de conversão: ${error.message}")
                             }
                         }
 
-                        // Envia dados e foto para o ViewModel compartilhado
-                        viewModel.registrarMedicamento(estadoFormulario, imagemRemedioUri)
+                        if (itemOcrParaEditar != null && ocrTempId != null) {
+                            // 1. Edição de item extraído pelo OCR (antes de salvar na agenda)
+                            viewModel.atualizarItemOcr(ocrTempId, estadoFormulario)
+                            Toast.makeText(context, "Item atualizado na lista!", Toast.LENGTH_SHORT).show()
+                            navController.popBackStack()
+                        } else if (itemParaEditar != null && medicamentoId != null) {
+                            // 2. Edição de medicamento já cadastrado na agenda
+                            viewModel.atualizarMedicamento(
+                                id = medicamentoId,
+                                request = estadoFormulario,
+                                imagemFile = arquivoImagem,
+                                imagemUri = imagemRemedioUri,
+                                onSucesso = {
+                                    Toast.makeText(context, "Medicamento atualizado!", Toast.LENGTH_SHORT).show()
+                                    navController.popBackStack()
+                                }
+                            )
+                        } else {
+                            // 3. Novo cadastro manual
+                            viewModel.registrarMedicamento(
+                                request = estadoFormulario,
+                                imagemFile = arquivoImagem,
+                                imagemUri = imagemRemedioUri,
+                                onSucesso = {
+                                    estadoFormulario = MedicamentoRequest(
+                                        unidadeMedida = "mg",
+                                        tipoMedicamento = "Comprimido"
+                                    )
+                                    imagemRemedioUri = null
+                                    camposComErro = emptySet()
 
-                        // Reseta o formulário para caso o usuário clique em "Cadastrar outro medicamento"
-                        estadoFormulario = MedicamentoRequest(
-                            unidadeMedida = "mg",
-                            tipoMedicamento = "Comprimido"
-                        )
-                        imagemRemedioUri = null
-                        camposComErro = emptySet()
-
-                        navController.navigate("CadastroSucessoMedicamento")
+                                    navController.navigate("CadastroSucessoMedicamento")
+                                }
+                            )
+                        }
                     } else {
                         Toast.makeText(context, "Preencha todos os campos obrigatórios (*).", Toast.LENGTH_SHORT).show()
                     }
                 },
+                enabled = !viewModel.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AzulPrincipal),
                 shape = CircleShape
             ) {
-                Text(
-                    text = "Cadastrar Medicamento",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (viewModel.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Text(
+                        text = if (isEdicao) "Salvar Alterações" else "Cadastrar Medicamento",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
