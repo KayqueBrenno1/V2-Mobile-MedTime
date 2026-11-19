@@ -13,12 +13,14 @@ import androidx.navigation.compose.rememberNavController
 import com.example.v2_medtime.screens.AgendaMedicamentosScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
 import com.example.v2_medtime.screens.DetalhesMedicamentoScreen
+import com.example.v2_medtime.screens.EditarPerfilScreen
 import com.example.v2_medtime.screens.EscolhaCadastroMedicamentoScreen
 import com.example.v2_medtime.screens.EstoqueMedicamentoScreen
 import com.example.v2_medtime.screens.HistoricoScreen
 import com.example.v2_medtime.screens.InicioScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.MedicamentosIdentificadosScreen
+import com.example.v2_medtime.screens.PerfilScreen
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
 import com.example.v2_medtime.screens.auth.CadastroRealizadoScreen
 import com.example.v2_medtime.screens.auth.ConfirmarEmailScreen
@@ -30,6 +32,7 @@ import com.example.v2_medtime.screens.auth.VerificarCodigoSenhaScreen
 import com.example.v2_medtime.viewmodel.HistoricoViewModel
 import com.example.v2_medtime.viewmodel.InicioViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
+import com.example.v2_medtime.viewmodel.PerfilViewModel
 
 @Composable
 fun AppNavigation(
@@ -39,6 +42,7 @@ fun AppNavigation(
     val medicamentoViewModel: MedicamentoViewModel = viewModel()
     val historicoViewModel: HistoricoViewModel = viewModel()
     val inicioViewModel: InicioViewModel = viewModel()
+    val perfilViewModel: PerfilViewModel = viewModel()
 
     var emailCadastro by rememberSaveable {
         mutableStateOf("")
@@ -53,6 +57,7 @@ fun AppNavigation(
             "Início" -> "inicio"
             "Medicamentos" -> "agenda_medicamentos"
             "Histórico" -> "historico"
+            "Perfil" -> "perfil"
             else -> null
         }
         if (rotaDestino != null) {
@@ -277,6 +282,21 @@ fun AppNavigation(
                 navController = navController,
                 viewModel = inicioViewModel,
                 onNavigateTab = navegarPelaNavbar
+            )
+        }
+
+        composable("perfil") {
+            PerfilScreen(
+                navController = navController,
+                viewModel = perfilViewModel,
+                onNavigateTab = navegarPelaNavbar
+            )
+        }
+
+        composable("editar_perfil") {
+            EditarPerfilScreen(
+                navController = navController,
+                viewModel = perfilViewModel
             )
         }
 
