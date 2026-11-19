@@ -53,7 +53,8 @@ import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 fun AgendaMedicamentosScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    viewModel: MedicamentoViewModel
+    viewModel: MedicamentoViewModel,
+    onNavigateTab: (String) -> Unit = {}
 ) {
     var termoBusca by remember { mutableStateOf("") }
     var filtroSelecionado by remember { mutableStateOf("Todos") }
@@ -83,9 +84,7 @@ fun AgendaMedicamentosScreen(
             bottomBar = {
                 AgendaBottomBar(
                     selectedTab = "Medicamentos",
-                    onTabSelected = { aba ->
-                        // Pronto para ligar às outras abas futuramente
-                    }
+                    onTabSelected = onNavigateTab
                 )
             }
         ) { innerPadding ->
@@ -226,7 +225,7 @@ fun AgendaMedicamentosScreen(
                             item = item,
                             colorIndex = index,
                             onClick = {
-                                // Pronto para abrir detalhes/edição do medicamento futuramente
+                                navController.navigate("detalhes_medicamento/${item.id}")
                             }
                         )
                     }

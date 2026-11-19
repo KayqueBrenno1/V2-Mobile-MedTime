@@ -12,6 +12,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.v2_medtime.screens.AgendaMedicamentosScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
+import com.example.v2_medtime.screens.DetalhesMedicamentoScreen
+import com.example.v2_medtime.screens.EstoqueMedicamentoScreen
+import com.example.v2_medtime.screens.HistoricoScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
 import com.example.v2_medtime.screens.auth.CadastroRealizadoScreen
@@ -21,6 +24,7 @@ import com.example.v2_medtime.screens.auth.EscolhaPerfilScreen
 import com.example.v2_medtime.screens.auth.LoginScreen
 import com.example.v2_medtime.screens.auth.RecuperarSenhaScreen
 import com.example.v2_medtime.screens.auth.VerificarCodigoSenhaScreen
+import com.example.v2_medtime.viewmodel.HistoricoViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 
 @Composable
@@ -29,6 +33,7 @@ fun AppNavigation(
 ) {
     val navController = rememberNavController()
     val medicamentoViewModel: MedicamentoViewModel = viewModel()
+    val historicoViewModel: HistoricoViewModel = viewModel()
 
     var emailCadastro by rememberSaveable {
         mutableStateOf("")
@@ -36,6 +41,21 @@ fun AppNavigation(
 
     var emailRecuperacao by rememberSaveable {
         mutableStateOf("")
+    }
+
+    val navegarPelaNavbar: (String) -> Unit = { aba ->
+        val rotaDestino = when (aba) {
+            "Medicamentos" -> "agenda_medicamentos"
+            "Histórico" -> "historico"
+            else -> null
+        }
+        if (rotaDestino != null) {
+            navController.navigate(rotaDestino) {
+                popUpTo("agenda_medicamentos") { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     }
 
     NavHost(
@@ -163,23 +183,23 @@ fun AppNavigation(
             )
         }
 
-        composable("MedicamentoScreen") {
-            MedicamentoScreen(
-                navController = navController,
-                viewModel = medicamentoViewModel
-            )
-        }
+        // ===============================================================
+        // MÓDULO DE MEDICAMENTOS, DETALHES, EDIÇÃO, ESTOQUE E HISTÓRICO
+        // ===============================================================
 
-        composable("CadastroSucessoMedicamento") {
-            CadastroSucessoMedicamentoScreen(
-                navController = navController,
-                viewModel = medicamentoViewModel
-            )
-        }
         composable("agenda_medicamentos") {
             AgendaMedicamentosScreen(
                 navController = navController,
-                viewModel = medicamentoViewModel
+                viewModel = medicamentoViewModel,
+                onNavigateTab = navegarPelaNavbar
+            )
+        }
+
+        composable("historico") {
+            HistoricoScreen(
+                navController = navController,
+                viewModel = historicoViewModel,
+                onNavigateTab = navegarPelaNavbar
             )
         }
 
@@ -192,6 +212,33 @@ fun AppNavigation(
 
         composable("CadastroSucessoMedicamento") {
             CadastroSucessoMedicamentoScreen(
+                navController = navController,
+                viewModel = medicamentoViewModel
+            )
+        }
+
+        composable("detalhes_medicamento/{id}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")?.toLongOrNull() ?: 0L
+            DetalhesMedicamentoScreen(
+                medicamentoId = id,
+                navController = navController,
+                viewModel = medicamentoViewModel
+            )
+        }
+
+        composable("editar_medicamento/{id}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
+            MedicamentoScreen(
+                navController = navController,
+                viewModel = medicamentoViewModel,
+                medicamentoId = id
+            )
+        }
+
+        composable("estoque_medicamento/{id}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")?.toLongOrNull() ?: 0L
+            EstoqueMedicamentoScreen(
+                medicamentoId = id,
                 navController = navController,
                 viewModel = medicamentoViewModel
             )
