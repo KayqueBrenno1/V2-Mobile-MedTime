@@ -187,7 +187,7 @@ fun AppNavigation(
                 BoasVindasScreen(
                     onComecar = {
                         navController.navigate("escolha_perfil")
-                    },g
+                    },
                     onGoogle = {
                         coroutineScope.launch {
                             try {
