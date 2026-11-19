@@ -273,65 +273,63 @@ fun DadosPessoaisScreen(
             Spacer(modifier = Modifier.height(20.dp))
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (!tecladoAberto) {
-                // Próximo
-                Button(
-                    onClick = {
-                        tentouProximo = true
+            // Próximo
+            Button(
+                onClick = {
+                    tentouProximo = true
 
-                        if (
-                            Validadores.validarNome(nome) &&
-                            Validadores.validarCpf(cpf) &&
-                            Validadores.validarDataNascimento(dataNascimento) &&
-                            Validadores.validarEmail(email) &&
-                            Validadores.validarTelefone(telefone)
-                        ) {
-                            onProximo(
-                                DadosPessoais(
-                                    nome = nome.trim(),
-                                    cpf = cpf,
-                                    dataNascimento = dataNascimento,
-                                    email = email.trim(),
-                                    telefone = telefone
-                                )
+                    if (
+                        Validadores.validarNome(nome) &&
+                        Validadores.validarCpf(cpf) &&
+                        Validadores.validarDataNascimento(dataNascimento) &&
+                        Validadores.validarEmail(email) &&
+                        Validadores.validarTelefone(telefone)
+                    ) {
+                        onProximo(
+                            DadosPessoais(
+                                nome = nome.trim(),
+                                cpf = cpf,
+                                dataNascimento = dataNascimento,
+                                email = email.trim(),
+                                telefone = telefone
                             )
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(58.dp),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorResource(R.color.azul_botao)
-                    )
-                ) {
-                    Text(
-                        text = if (cadastroGoogle) "Concluir cadastro" else "Próximo",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = colorResource(R.color.branco)
-                    )
-                }
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp),
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colorResource(R.color.azul_botao)
+                )
+            ) {
+                Text(
+                    text = if (cadastroGoogle) "Concluir cadastro" else "Próximo",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = colorResource(R.color.branco)
+                )
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedButton(
-                    onClick = onVoltar,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(58.dp),
-                    shape = RoundedCornerShape(50),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        azulBorda
-                    )
-                ) {
-                    Text(
-                        text = "Voltar",
-                        fontSize = 19.sp,
-                        color = colorResource(R.color.azul_entrar)
-                    )
-                }
+            OutlinedButton(
+                onClick = onVoltar,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp),
+                shape = RoundedCornerShape(50),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    azulBorda
+                )
+            ) {
+                Text(
+                    text = "Voltar",
+                    fontSize = 19.sp,
+                    color = colorResource(R.color.azul_entrar)
+                )
             }
 
             Spacer(modifier = Modifier.height(34.dp))

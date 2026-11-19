@@ -35,6 +35,7 @@ import com.example.v2_medtime.screens.auth.LoginScreen
 import com.example.v2_medtime.screens.auth.RecuperarSenhaScreen
 import com.example.v2_medtime.screens.auth.RedefinirSenhaScreen
 import com.example.v2_medtime.screens.auth.SenhaRedefinidaScreen
+import com.example.v2_medtime.screens.auth.SplashScreen
 import com.example.v2_medtime.screens.auth.VerificarCodigoSenhaScreen
 import com.example.v2_medtime.screens.components.LoadingOverlay
 import com.example.v2_medtime.viewmodel.CadastroViewModel
@@ -160,245 +161,292 @@ fun AppNavigation(
     ) {
         NavHost(
             navController = navController,
-            startDestination = "boas_vindas",
+            startDestination = "splash",
             modifier = Modifier
                 .fillMaxSize()
                 .blur(
                     if (loadingViewModel.isLoading) 12.dp else 0.dp
                 )
         ) {
-        composable("boas_vindas") {
-            BoasVindasScreen(
-                onComecar = {
-                    navController.navigate("escolha_perfil")
-                },
-                onEntrar = {
-                    navController.navigate("login")
-                }
-            )
-        }
+            composable("splash") {
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(1800)
 
-        composable("escolha_perfil") {
-            EscolhaPerfilScreen(
-                onPaciente = {
-                    if (loginViewModel.cadastroGoogleNecessario) {
-                        navController.navigate("dados_pessoais/google_paciente")
-                    } else {
-                        navController.navigate("dados_pessoais/paciente")
-                    }
-                },
-                onCuidador = {
-                    if (loginViewModel.cadastroGoogleNecessario) {
-                        navController.navigate("dados_pessoais/google_cuidador")
-                    } else {
-                        navController.navigate("dados_pessoais/cuidador")
-                    }
-                },
-                onVoltar = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        composable("dados_pessoais/{perfil}") { backStackEntry ->
-            val perfil = backStackEntry.arguments?.getString("perfil") ?: ""
-            val cadastroGoogle = perfil.startsWith("google_")
-
-            DadosPessoaisScreen(
-                onVoltar = {
-                    navController.popBackStack()
-                },
-                onProximo = { dados ->
-                    if (cadastroGoogle) {
-                        val idRole = when (perfil) {
-                            "google_cuidador" -> 1
-                            "google_paciente" -> 2
-                            else -> null
-                        }
-
-                        if (idRole != null) {
-                            loginViewModel.cadastrarUsuarioGoogle(dados, idRole)
-                        }
-                    } else {
-                        cadastroViewModel.definirDadosPessoais(dados)
-                        navController.navigate("criar_senha")
-                    }
-                },
-                cadastroGoogle = cadastroGoogle,
-                nomeGoogle = if (cadastroGoogle) {
-                    loginViewModel.dadosGoogleCadastro
-                        ?.get("nome")?.asString.orEmpty()
-                } else "",
-                emailGoogle = if (cadastroGoogle) {
-                    loginViewModel.dadosGoogleCadastro
-                        ?.get("email")?.asString.orEmpty()
-                } else "",
-            )
-        }
-
-        composable("criar_senha") {
-            CriarSenhaScreen(
-                senhaInicial = cadastroViewModel.obterSenha().orEmpty(),
-                onVoltar = {
-                    navController.popBackStack()
-                },
-                onProximo = { senha ->
-                    cadastroViewModel.definirSenha(senha)
-                    cadastroViewModel.enviarCodigoVerificacao()
-                }
-            )
-        }
-
-        composable("confirmar_email") {
-            ConfirmarEmailScreen(
-                email = cadastroViewModel.dadosPessoais?.email.orEmpty(),
-                confirmarEmailViewModel = confirmarEmailViewModel,
-                onVerificar = { codigo ->
-                    cadastroViewModel.cadastrarUsuario(codigo)
-                },
-                onReenviarCodigo = {
-                    cadastroViewModel.enviarCodigoVerificacao(
-                        navegarAposEnvio = false
-                    )
-                },
-                onVoltar = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        composable("cadastro_realizado") {
-            CadastroRealizadoScreen(
-                onAcessarConta = {
-                    navController.navigate("login") {
-                        popUpTo("cadastro_realizado") {
+                    navController.navigate("boas_vindas") {
+                        popUpTo("splash") {
                             inclusive = true
                         }
                         launchSingleTop = true
                     }
                 }
-            )
-        }
 
-        composable("login") {
-            LoginScreen(
-                onVoltar = {
-                    navController.popBackStack()
-                },
-                onEntrar = { email, senha ->
-                    loginViewModel.autenticarLogin(email, senha)
-                },
-                onEsqueceuSenha = {
-                    navController.navigate("recuperar_senha")
-                },
-                onEntrarGoogle = {
-                    coroutineScope.launch {
-                        try {
-                            android.util.Log.d(
-                                "MedTimeGoogle",
-                                "Iniciando seleção da conta Google"
-                            )
+                SplashScreen()
+            }
 
-                            val tokenGoogle = googleAuthManager.autenticarGoogle()
+            composable("boas_vindas") {
+                BoasVindasScreen(
+                    onComecar = {
+                        navController.navigate("escolha_perfil")
+                    },g
+                    onGoogle = {
+                        coroutineScope.launch {
+                            try {
+                                android.util.Log.d(
+                                    "MedTimeGoogle",
+                                    "Iniciando seleção da conta Google"
+                                )
 
-                            android.util.Log.d(
-                                "MedTimeGoogle",
-                                "ID Token recebido com sucesso"
-                            )
+                                val tokenGoogle = googleAuthManager.autenticarGoogle()
 
-                            loginViewModel.autenticarGoogle(tokenGoogle)
-                        } catch (error: GetCredentialCancellationException) {
-                            // O usuário cancelou a seleção da conta Google.
+                                android.util.Log.d(
+                                    "MedTimeGoogle",
+                                    "ID Token recebido com sucesso"
+                                )
 
-                        } catch (error: Exception) {
-                            android.util.Log.e(
-                                "MedTimeGoogle",
-                                "Erro na autenticação Google",
-                                error
-                            )
+                                loginViewModel.autenticarGoogle(tokenGoogle)
+                            } catch (error: GetCredentialCancellationException) {
+                                // O usuário cancelou a seleção da conta Google.
 
-                            snackbarHostState.showSnackbar(
-                                "Não foi possível entrar com Google. Tente novamente."
-                            )
+                            } catch (error: Exception) {
+                                android.util.Log.e(
+                                    "MedTimeGoogle",
+                                    "Erro na autenticação Google",
+                                    error
+                                )
+
+                                snackbarHostState.showSnackbar(
+                                    "Não foi possível entrar com Google. Tente novamente."
+                                )
+                            }
+                        }
+                    },
+                    onEntrar = {
+                        navController.navigate("login")
+                    }
+                )
+            }
+
+            composable("escolha_perfil") {
+                EscolhaPerfilScreen(
+                    onPaciente = {
+                        if (loginViewModel.cadastroGoogleNecessario) {
+                            navController.navigate("dados_pessoais/google_paciente")
+                        } else {
+                            navController.navigate("dados_pessoais/paciente")
+                        }
+                    },
+                    onCuidador = {
+                        if (loginViewModel.cadastroGoogleNecessario) {
+                            navController.navigate("dados_pessoais/google_cuidador")
+                        } else {
+                            navController.navigate("dados_pessoais/cuidador")
+                        }
+                    },
+                    onVoltar = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("dados_pessoais/{perfil}") { backStackEntry ->
+                val perfil = backStackEntry.arguments?.getString("perfil") ?: ""
+                val cadastroGoogle = perfil.startsWith("google_")
+
+                DadosPessoaisScreen(
+                    onVoltar = {
+                        navController.popBackStack()
+                    },
+                    onProximo = { dados ->
+                        if (cadastroGoogle) {
+                            val idRole = when (perfil) {
+                                "google_cuidador" -> 1
+                                "google_paciente" -> 2
+                                else -> null
+                            }
+
+                            if (idRole != null) {
+                                loginViewModel.cadastrarUsuarioGoogle(dados, idRole)
+                            }
+                        } else {
+                            cadastroViewModel.definirDadosPessoais(dados)
+                            navController.navigate("criar_senha")
+                        }
+                    },
+                    cadastroGoogle = cadastroGoogle,
+                    nomeGoogle = if (cadastroGoogle) {
+                        loginViewModel.dadosGoogleCadastro
+                            ?.get("nome")?.asString.orEmpty()
+                    } else "",
+                    emailGoogle = if (cadastroGoogle) {
+                        loginViewModel.dadosGoogleCadastro
+                            ?.get("email")?.asString.orEmpty()
+                    } else "",
+                )
+            }
+
+            composable("criar_senha") {
+                CriarSenhaScreen(
+                    senhaInicial = cadastroViewModel.obterSenha().orEmpty(),
+                    onVoltar = {
+                        navController.popBackStack()
+                    },
+                    onProximo = { senha ->
+                        cadastroViewModel.definirSenha(senha)
+                        cadastroViewModel.enviarCodigoVerificacao()
+                    }
+                )
+            }
+
+            composable("confirmar_email") {
+                ConfirmarEmailScreen(
+                    email = cadastroViewModel.dadosPessoais?.email.orEmpty(),
+                    confirmarEmailViewModel = confirmarEmailViewModel,
+                    onVerificar = { codigo ->
+                        cadastroViewModel.cadastrarUsuario(codigo)
+                    },
+                    onReenviarCodigo = {
+                        cadastroViewModel.enviarCodigoVerificacao(
+                            navegarAposEnvio = false
+                        )
+                    },
+                    onVoltar = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("cadastro_realizado") {
+                CadastroRealizadoScreen(
+                    onAcessarConta = {
+                        navController.navigate("login") {
+                            popUpTo("cadastro_realizado") {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
                         }
                     }
-                },
-                onCadastrar = {
-                    navController.navigate("escolha_perfil")
-                }
-            )
-        }
+                )
+            }
 
-        composable("recuperar_senha") {
-            RecuperarSenhaScreen(
-                onVoltar = {
-                    navController.popBackStack()
-                },
-                onEnviarCodigo = { email ->
-                    emailRecuperacao = email
+            composable("login") {
+                LoginScreen(
+                    onVoltar = {
+                        navController.popBackStack()
+                    },
+                    onEntrar = { email, senha ->
+                        loginViewModel.autenticarLogin(email, senha)
+                    },
+                    onEsqueceuSenha = {
+                        navController.navigate("recuperar_senha")
+                    },
+                    onEntrarGoogle = {
+                        coroutineScope.launch {
+                            try {
+                                android.util.Log.d(
+                                    "MedTimeGoogle",
+                                    "Iniciando seleção da conta Google"
+                                )
 
-                    navController.navigate("verificar_codigo_senha")
-                }
-            )
-        }
+                                val tokenGoogle = googleAuthManager.autenticarGoogle()
 
-        composable("verificar_codigo_senha") {
-            val confirmarEmailViewModel: ConfirmarEmailViewModel = viewModel()
+                                android.util.Log.d(
+                                    "MedTimeGoogle",
+                                    "ID Token recebido com sucesso"
+                                )
 
-            VerificarCodigoSenhaScreen(
-                email = emailRecuperacao,
-                confirmarEmailViewModel = confirmarEmailViewModel,
-                onVerificar = { codigo ->
-                    // Futuramente, validar o código de recuperação pela API.
-                    // Somente após a validação, navegar para redefinir_senha.
-                },
-                onReenviarCodigo = {
-                    // Futuramente, solicitar um novo código à API.
-                },
-                onVoltar = {
-                    navController.popBackStack()
-                }
-            )
-        }
+                                loginViewModel.autenticarGoogle(tokenGoogle)
+                            } catch (error: GetCredentialCancellationException) {
+                                // O usuário cancelou a seleção da conta Google.
 
-        composable("redefinir_senha") {
-            RedefinirSenhaScreen(
-                onVoltar = {
-                    navController.popBackStack()
-                },
-                onRedefinirSenha = { novaSenha ->
-                    // Futuramente, enviar a nova senha para a API.
-                }
-            )
-        }
+                            } catch (error: Exception) {
+                                android.util.Log.e(
+                                    "MedTimeGoogle",
+                                    "Erro na autenticação Google",
+                                    error
+                                )
 
-        composable("senha_redefinida") {
-            SenhaRedefinidaScreen(
-                onVoltarLogin = {
-                    navController.navigate("login") {
-                        popUpTo("login") {
-                            inclusive = false
+                                snackbarHostState.showSnackbar(
+                                    "Não foi possível entrar com Google. Tente novamente."
+                                )
+                            }
                         }
-                        launchSingleTop = true
+                    },
+                    onCadastrar = {
+                        navController.navigate("escolha_perfil")
                     }
-                }
-            )
-        }
+                )
+            }
 
-        composable("MedicamentoScreen") {
-            MedicamentoScreen(
-                navController = navController,
-                viewModel = medicamentoViewModel
-            )
-        }
+            composable("recuperar_senha") {
+                RecuperarSenhaScreen(
+                    onVoltar = {
+                        navController.popBackStack()
+                    },
+                    onEnviarCodigo = { email ->
+                        emailRecuperacao = email
 
-            composable("CadastroSucessoMedicamento") {
-                CadastroSucessoMedicamentoScreen(
+                        navController.navigate("verificar_codigo_senha")
+                    }
+                )
+            }
+
+            composable("verificar_codigo_senha") {
+                val confirmarEmailViewModel: ConfirmarEmailViewModel = viewModel()
+
+                VerificarCodigoSenhaScreen(
+                    email = emailRecuperacao,
+                    confirmarEmailViewModel = confirmarEmailViewModel,
+                    onVerificar = { codigo ->
+                        // Futuramente, validar o código de recuperação pela API.
+                        // Somente após a validação, navegar para redefinir_senha.
+                    },
+                    onReenviarCodigo = {
+                        // Futuramente, solicitar um novo código à API.
+                    },
+                    onVoltar = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("redefinir_senha") {
+                RedefinirSenhaScreen(
+                    onVoltar = {
+                        navController.popBackStack()
+                    },
+                    onRedefinirSenha = { novaSenha ->
+                        // Futuramente, enviar a nova senha para a API.
+                    }
+                )
+            }
+
+            composable("senha_redefinida") {
+                SenhaRedefinidaScreen(
+                    onVoltarLogin = {
+                        navController.navigate("login") {
+                            popUpTo("login") {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+
+            composable("MedicamentoScreen") {
+                MedicamentoScreen(
                     navController = navController,
                     viewModel = medicamentoViewModel
                 )
             }
-        }
+
+                composable("CadastroSucessoMedicamento") {
+                    CadastroSucessoMedicamentoScreen(
+                        navController = navController,
+                        viewModel = medicamentoViewModel
+                    )
+                }
+            }
 
         SnackbarHost(
             hostState = snackbarHostState,
