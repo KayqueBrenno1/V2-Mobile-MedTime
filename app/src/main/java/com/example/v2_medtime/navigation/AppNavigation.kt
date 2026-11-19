@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.v2_medtime.screens.AgendaMedicamentosScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
 import com.example.v2_medtime.screens.DetalhesMedicamentoScreen
+import com.example.v2_medtime.screens.EscolhaCadastroMedicamentoScreen
 import com.example.v2_medtime.screens.EstoqueMedicamentoScreen
 import com.example.v2_medtime.screens.HistoricoScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
@@ -183,9 +184,9 @@ fun AppNavigation(
             )
         }
 
-        // ===============================================================
-        // MÓDULO DE MEDICAMENTOS, DETALHES, EDIÇÃO, ESTOQUE E HISTÓRICO
-        // ===============================================================
+        // ====================================================================================
+        // MÓDULO DE MEDICAMENTOS, DETALHES, EDIÇÃO, ESTOQUE, HISTÓRICO, ADIÇÃO POPR OCR/MANUAL
+        // ====================================================================================
 
         composable("agenda_medicamentos") {
             AgendaMedicamentosScreen(
@@ -243,5 +244,13 @@ fun AppNavigation(
                 viewModel = medicamentoViewModel
             )
         }
+
+        composable("escolha_cadastro_medicamento") {
+            EscolhaCadastroMedicamentoScreen(
+                navController = navController,
+                viewModel = medicamentoViewModel
+            )
+        }
+
     }
 }

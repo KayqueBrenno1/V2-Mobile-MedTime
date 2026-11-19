@@ -21,6 +21,9 @@ interface MedicamentoRepository {
     ): Result<MedicamentoCadastrado>
     suspend fun atualizarEstoque(id: Long, novaQuantidade: Int): Result<Unit>
     suspend fun excluirMedicamento(id: Long): Result<Unit>
+
+    suspend fun escanearReceitaOcr(imagemReceita: File): Result<List<MedicamentoRequest>>
+
 }
 
 /**
@@ -29,6 +32,40 @@ interface MedicamentoRepository {
  * MedicamentoRepository e injetar no ViewModel.
  */
 class FakeMedicamentoRepository : MedicamentoRepository {
+
+    override suspend fun escanearReceitaOcr(imagemReceita: File): Result<List<MedicamentoRequest>> {
+        // Simula o tempo de processamento da IA + OCR na API
+        kotlinx.coroutines.delay(1500L)
+
+        // Simula o JSON de resposta da API com os medicamentos extraídos da receita
+        val remediosExtraidos = listOf(
+            MedicamentoRequest(
+                nome = "Amoxicilina",
+                concentracao = "500",
+                unidadeMedida = "mg",
+                dose = "1",
+                tipoMedicamento = "Cápsula",
+                frequencia = "8",
+                intervaloDosagem = "hora",
+                horarioInicial = "08:00",
+                quantidadeTotal = "21",
+                descricao = "Extraído via OCR - Tomar por 7 dias"
+            ),
+            MedicamentoRequest(
+                nome = "Dipirona Monoidratada",
+                concentracao = "500",
+                unidadeMedida = "mg",
+                dose = "1",
+                tipoMedicamento = "Comprimido",
+                frequencia = "6",
+                intervaloDosagem = "hora",
+                horarioInicial = "09:00",
+                quantidadeTotal = "10",
+                descricao = "Extraído via OCR - Se houver dor ou febre"
+            )
+        )
+        return Result.success(remediosExtraidos)
+    }
 
     private val bancoLocal = mutableListOf(
         MedicamentoCadastrado(

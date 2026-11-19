@@ -127,7 +127,7 @@ fun AgendaMedicamentosScreen(
                             .size(44.dp)
                             .clip(CircleShape)
                             .background(azulPrincipal)
-                            .clickable { navController.navigate("MedicamentoScreen") },
+                            .clickable { navController.navigate("escolha_cadastro_medicamento") },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

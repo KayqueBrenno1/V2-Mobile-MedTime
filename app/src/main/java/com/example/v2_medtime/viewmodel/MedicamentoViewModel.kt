@@ -31,6 +31,11 @@ class MedicamentoViewModel(
     private val repository: MedicamentoRepository = FakeMedicamentoRepository()
 ) : ViewModel() {
 
+    var isEscaneandoOcr by mutableStateOf(false)
+        private set
+
+    val remediosExtraidosOcr = mutableStateListOf<MedicamentoRequest>()
+
     var ultimoMedicamento by mutableStateOf<MedicamentoCadastrado?>(null)
         private set
 
@@ -159,4 +164,41 @@ class MedicamentoViewModel(
             isLoading = false
         }
     }
+
+    fun processarReceitaOcr(
+        imagemReceita: File,
+        onSucesso: (List<MedicamentoRequest>) -> Unit
+    ) {
+        viewModelScope.launch {
+            isEscaneandoOcr = true
+            erroMensagem = null
+            repository.escanearReceitaOcr(imagemReceita)
+                .onSuccess { listaExtraida ->
+                    remediosExtraidosOcr.clear()
+                    remediosExtraidosOcr.addAll(listaExtraida)
+                    onSucesso(listaExtraida)
+                }
+                .onFailure { erro ->
+                    erroMensagem = erro.message ?: "Não foi possível ler a receita"
+                }
+            isEscaneandoOcr = false
+        }
+    }
+
+    fun salvarTodosExtraidosOcr(onConcluido: () -> Unit) {
+        viewModelScope.launch {
+            isLoading = true
+            remediosExtraidosOcr.forEach { request ->
+                repository.cadastrarMedicamento(request, null, null)
+                    .onSuccess { novoItem ->
+                        ultimoMedicamento = novoItem
+                        listaMedicamentos.add(0, novoItem)
+                    }
+            }
+            remediosExtraidosOcr.clear()
+            isLoading = false
+            onConcluido()
+        }
+    }
+
 }

@@ -1,0 +1,446 @@
+package com.example.v2_medtime.screens
+
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import androidx.navigation.NavController
+import com.example.v2_medtime.screens.components.BackgroundPadrao
+import com.example.v2_medtime.viewmodel.MedicamentoViewModel
+import java.io.File
+
+private enum class ModoCadastro {
+    MANUAL,
+    OCR
+}
+
+@Composable
+fun EscolhaCadastroMedicamentoScreen(
+    navController: NavController,
+    viewModel: MedicamentoViewModel,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var modoSelecionado by remember { mutableStateOf(ModoCadastro.MANUAL) }
+    var mostrarResultadoOcr by remember { mutableStateOf(false) }
+
+    val azulPrincipal = Color(0xFF0077D7)
+    val azulIcone = Color(0xFF1592D0)
+    val textoEscuro = Color(0xFF0F172A)
+    val textoSecundario = Color(0xFF5A657D)
+
+    // Prepara arquivo temporário e URI para captura da receita via câmera
+    val receitaFile = remember {
+        File(context.cacheDir, "receita_ocr_${System.currentTimeMillis()}.jpg")
+    }
+    val receitaUri = remember {
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            receitaFile
+        )
+    }
+
+    val cameraOcrLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { sucesso ->
+            if (sucesso && receitaFile.exists()) {
+                viewModel.processarReceitaOcr(receitaFile) { listaEncontrada ->
+                    if (listaEncontrada.isNotEmpty()) {
+                        mostrarResultadoOcr = true
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Nenhum medicamento identificado na receita.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF3F8FD))
+    ) {
+        BackgroundPadrao()
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                // Topo: Ícone pílula + MedTime
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Medication,
+                        contentDescription = null,
+                        tint = azulIcone,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "MedTime",
+                        color = Color(0xFF1E3A5F),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Cabeçalho: < Cadastrar Medicamento
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable { navController.popBackStack() }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = "Voltar",
+                        tint = textoEscuro,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Cadastrar Medicamento",
+                        color = textoEscuro,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Escolha como deseja adicionar\nseu medicamento:",
+                    color = textoSecundario,
+                    fontSize = 16.sp,
+                    lineHeight = 22.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Opção 1: Cadastro Manual
+                OpcaoCadastroCard(
+                    icon = Icons.Outlined.Edit,
+                    titulo = "Cadastro Manual",
+                    subtitulo = "Preencha as informações\ndo medicamento",
+                    selecionado = modoSelecionado == ModoCadastro.MANUAL,
+                    onClick = { modoSelecionado = ModoCadastro.MANUAL }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Opção 2: Escanear Receita (OCR + IA)
+                OpcaoCadastroCard(
+                    icon = Icons.Outlined.DocumentScanner,
+                    titulo = "Escanear Receita",
+                    subtitulo = "Use a câmera para ler\nsua receita com OCR + IA",
+                    selecionado = modoSelecionado == ModoCadastro.OCR,
+                    onClick = { modoSelecionado = ModoCadastro.OCR }
+                )
+
+                Spacer(modifier = Modifier.height(22.dp))
+
+                // Divisor "ou"
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        color = Color(0xFFD6E2F0),
+                        thickness = 1.dp
+                    )
+                    Text(
+                        text = "ou",
+                        color = textoSecundario,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        color = Color(0xFFD6E2F0),
+                        thickness = 1.dp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Banner Informativo Inferior
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFE7F0FA)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = azulIcone,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Você também pode cadastrar o medicamento manualmente após escanear a receita.",
+                            color = Color(0xFF2B4C7E),
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
+
+            // Botão Principal "Continuar"
+            Button(
+                onClick = {
+                    when (modoSelecionado) {
+                        ModoCadastro.MANUAL -> {
+                            navController.navigate("MedicamentoScreen")
+                        }
+                        ModoCadastro.OCR -> {
+                            cameraOcrLauncher.launch(receitaUri)
+                        }
+                    }
+                },
+                enabled = !viewModel.isEscaneandoOcr,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+                    .height(54.dp),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = azulPrincipal)
+            ) {
+                if (viewModel.isEscaneandoOcr) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Analisando receita...",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Text(
+                        text = "Continuar",
+                        color = Color.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Modal de Revisão dos Medicamentos Retornados pelo OCR + IA
+        if (mostrarResultadoOcr) {
+            AlertDialog(
+                onDismissRequest = { mostrarResultadoOcr = false },
+                title = {
+                    Text(
+                        text = "Receita lida com sucesso!",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Encontramos ${viewModel.remediosExtraidosOcr.size} medicamento(s) na receita:",
+                            fontSize = 14.sp,
+                            color = textoSecundario
+                        )
+                        viewModel.remediosExtraidosOcr.forEach { med ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFF3F8FD),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "${med.nome} ${med.concentracao}${med.unidadeMedida}",
+                                        fontWeight = FontWeight.Bold,
+                                        color = textoEscuro,
+                                        fontSize = 15.sp
+                                    )
+                                    Text(
+                                        text = "${med.dose} ${med.tipoMedicamento.lowercase()} • A cada ${med.frequencia} ${med.intervaloDosagem}(s)",
+                                        color = textoSecundario,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            mostrarResultadoOcr = false
+                            viewModel.salvarTodosExtraidosOcr {
+                                Toast.makeText(
+                                    context,
+                                    "Medicamentos da receita adicionados!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                navController.navigate("agenda_medicamentos") {
+                                    popUpTo("agenda_medicamentos") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = azulPrincipal)
+                    ) {
+                        Text("Adicionar todos", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            mostrarResultadoOcr = false
+                            navController.navigate("MedicamentoScreen")
+                        }
+                    ) {
+                        Text("Cadastrar manual")
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun OpcaoCadastroCard(
+    icon: ImageVector,
+    titulo: String,
+    subtitulo: String,
+    selecionado: Boolean,
+    onClick: () -> Unit
+) {
+    val azulBorda = Color(0xFF4299E1)
+    val azulFundoSelecionado = Color(0xFFE6F1FC)
+    val azulIconeFundo = if (selecionado) Color(0xFFD2E7FA) else Color(0xFFEAF3FC)
+    val azulIcone = Color(0xFF1592D0)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        color = if (selecionado) azulFundoSelecionado else Color.White,
+        border = if (selecionado) BorderStroke(1.5.dp, azulBorda) else null,
+        shadowElevation = if (selecionado) 0.dp else 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 22.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(if (selecionado) CircleShape else RoundedCornerShape(18.dp))
+                    .background(azulIconeFundo),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = titulo,
+                    tint = azulIcone,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(18.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = titulo,
+                    color = Color(0xFF0F172A),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitulo,
+                    color = Color(0xFF5A657D),
+                    fontSize = 14.sp,
+                    lineHeight = 19.sp
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF5A657D),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
