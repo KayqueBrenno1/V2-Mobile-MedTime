@@ -16,6 +16,7 @@ import com.example.v2_medtime.screens.DetalhesMedicamentoScreen
 import com.example.v2_medtime.screens.EscolhaCadastroMedicamentoScreen
 import com.example.v2_medtime.screens.EstoqueMedicamentoScreen
 import com.example.v2_medtime.screens.HistoricoScreen
+import com.example.v2_medtime.screens.InicioScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.MedicamentosIdentificadosScreen
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
@@ -27,6 +28,7 @@ import com.example.v2_medtime.screens.auth.LoginScreen
 import com.example.v2_medtime.screens.auth.RecuperarSenhaScreen
 import com.example.v2_medtime.screens.auth.VerificarCodigoSenhaScreen
 import com.example.v2_medtime.viewmodel.HistoricoViewModel
+import com.example.v2_medtime.viewmodel.InicioViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 
 @Composable
@@ -36,6 +38,7 @@ fun AppNavigation(
     val navController = rememberNavController()
     val medicamentoViewModel: MedicamentoViewModel = viewModel()
     val historicoViewModel: HistoricoViewModel = viewModel()
+    val inicioViewModel: InicioViewModel = viewModel()
 
     var emailCadastro by rememberSaveable {
         mutableStateOf("")
@@ -47,13 +50,14 @@ fun AppNavigation(
 
     val navegarPelaNavbar: (String) -> Unit = { aba ->
         val rotaDestino = when (aba) {
+            "Início" -> "inicio"
             "Medicamentos" -> "agenda_medicamentos"
             "Histórico" -> "historico"
             else -> null
         }
         if (rotaDestino != null) {
             navController.navigate(rotaDestino) {
-                popUpTo("agenda_medicamentos") { saveState = true }
+                popUpTo("inicio") { saveState = true }
                 launchSingleTop = true
                 restoreState = true
             }
@@ -62,7 +66,7 @@ fun AppNavigation(
 
     NavHost(
         navController = navController,
-        startDestination = "agenda_medicamentos"
+        startDestination = "inicio"
     ) {
         composable("boas_vindas") {
             BoasVindasScreen(
@@ -266,6 +270,13 @@ fun AppNavigation(
                 navController = navController,
                 viewModel = medicamentoViewModel,
                 ocrTempId = ocrId
+            )
+        }
+        composable("inicio") {
+            InicioScreen(
+                navController = navController,
+                viewModel = inicioViewModel,
+                onNavigateTab = navegarPelaNavbar
             )
         }
 
