@@ -1,5 +1,6 @@
 package com.example.v2_medtime.screens.auth
 
+import android.util.Patterns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +67,15 @@ fun LoginScreen(
     var email by rememberSaveable { mutableStateOf("") }
     var senha by rememberSaveable { mutableStateOf("") }
     var mostrarSenha by rememberSaveable { mutableStateOf(false) }
+
+    var tentouEntrar by rememberSaveable { mutableStateOf(false) }
+
+    val emailValido = Patterns.EMAIL_ADDRESS
+        .matcher(email.trim())
+        .matches()
+
+    val erroEmail = tentouEntrar && !emailValido
+    val erroSenha = tentouEntrar && senha.isBlank()
 
     val azulTexto = colorResource(R.color.azul_texto)
     val azulBotao = colorResource(R.color.azul_botao)
@@ -137,6 +147,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
+                    isError = erroEmail,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(65.dp),
@@ -162,15 +173,34 @@ fun LoginScreen(
                         focusedBorderColor = azulBotao,
                         unfocusedBorderColor = azulBorda,
                         focusedTextColor = azulTexto,
-                        unfocusedTextColor = azulTexto
+                        unfocusedTextColor = azulTexto,
+                        errorBorderColor = Color.Red,
+                        errorTextColor = azulTexto,
+                        errorCursorColor = azulTexto,
+                        errorLeadingIconColor = azulTexto
                     )
                 )
+
+                if (erroEmail) {
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = if (email.isBlank()) {
+                            "Informe seu e-mail."
+                        } else {
+                            "Informe um e-mail válido."
+                        },
+                        color = Color.Red,
+                        fontSize = 14.sp
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = senha,
                     onValueChange = { senha = it },
+                    isError = erroSenha,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(65.dp),
@@ -217,12 +247,23 @@ fun LoginScreen(
                         keyboardType = KeyboardType.Password
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
+                        errorBorderColor = Color.Red,
                         focusedBorderColor = azulBotao,
                         unfocusedBorderColor = azulBorda,
                         focusedTextColor = azulTexto,
                         unfocusedTextColor = azulTexto
                     )
                 )
+
+                if (erroSenha) {
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Informe sua senha.",
+                        color = Color.Red,
+                        fontSize = 14.sp
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(18.dp))
 
@@ -239,8 +280,13 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(40.dp))
 
                 Button(
-                    onClick = { onEntrar(email, senha) },
-                    enabled = email.isNotBlank() && senha.isNotBlank(),
+                    onClick = {
+                        tentouEntrar = true
+
+                        if (emailValido && senha.isNotBlank()) {
+                            onEntrar(email.trim(), senha)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(58.dp),

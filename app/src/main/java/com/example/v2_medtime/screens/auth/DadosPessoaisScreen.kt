@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -44,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,6 +58,7 @@ import com.example.v2_medtime.R
 import com.example.v2_medtime.data.model.DadosPessoais
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.utils.FormatadorCampos
+import com.example.v2_medtime.utils.Validadores
 
 @Composable
 fun DadosPessoaisScreen(
@@ -62,6 +66,9 @@ fun DadosPessoaisScreen(
     onVoltar: () -> Unit = {},
     onProximo: (DadosPessoais) -> Unit = {}
 ) {
+    val density = LocalDensity.current
+    val tecladoAberto = WindowInsets.ime.getBottom(density) > 0
+
     var nome by rememberSaveable {
         mutableStateOf("")
     }
@@ -82,6 +89,18 @@ fun DadosPessoaisScreen(
         mutableStateOf("")
     }
 
+    var tentouProximo by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val erroNome = tentouProximo && !Validadores.validarNome(nome)
+    val erroCpf = tentouProximo && !Validadores.validarCpf(cpf)
+    val erroData = tentouProximo &&
+            !Validadores.validarDataNascimento(dataNascimento)
+    val erroEmail = tentouProximo && !Validadores.validarEmail(email)
+    val erroTelefone = tentouProximo &&
+            !Validadores.validarTelefone(telefone)
+
     val azulTexto = colorResource(R.color.azul_texto)
     val azulBorda = colorResource(R.color.azul_borda)
 
@@ -98,16 +117,19 @@ fun DadosPessoaisScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp)
         ) {
-            Spacer(modifier = Modifier.height(25.dp))
-
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
-                Spacer(modifier = Modifier.height(35.dp))
+                Spacer(
+                    modifier = Modifier.height(
+                        if (tecladoAberto) 16.dp else 35.dp
+                    )
+                )
 
                 IndicadorEtapasCadastro(
                     etapaAtual = 1
@@ -143,8 +165,14 @@ fun DadosPessoaisScreen(
                             imageVector = Icons.Outlined.PersonOutline,
                             contentDescription = null
                         )
-                    }
+                    },
+                    mensagemErro = if (erroNome) {
+                        "Informe seu nome completo."
+                    } else null,
                 )
+
+
+
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -162,7 +190,10 @@ fun DadosPessoaisScreen(
                             imageVector = Icons.Outlined.Badge,
                             contentDescription = null
                         )
-                    }
+                    },
+                    mensagemErro = if (erroCpf) {
+                        "Informe um CPF válido."
+                    } else null,
                 )
 
 
@@ -183,7 +214,10 @@ fun DadosPessoaisScreen(
                             imageVector = Icons.Outlined.CalendarMonth,
                             contentDescription = null
                         )
-                    }
+                    },
+                    mensagemErro = if (erroData) {
+                        "Informe uma data de nascimento válida."
+                    } else null,
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -204,7 +238,11 @@ fun DadosPessoaisScreen(
                             imageVector = Icons.Outlined.Email,
                             contentDescription = null
                         )
-                    }
+                    },
+                    mensagemErro = if (erroEmail) {
+                        if (email.isBlank()) "Informe seu e-mail."
+                        else "Informe um e-mail válido."
+                    } else null,
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -215,7 +253,7 @@ fun DadosPessoaisScreen(
                     onValorChange = { valor ->
                         telefone = valor.filter { it.isDigit() }.take(11)
                     },
-                    titulo = "Telefone",
+                    titulo = "Telefone (Opcional)",
                     placeholder = "(11) 99999-9999",
                     keyboardType = KeyboardType.Phone,
                     visualTransformation = FormatadorCampos.telefoneVisualTransformation(),
@@ -224,7 +262,10 @@ fun DadosPessoaisScreen(
                             imageVector = Icons.Outlined.Phone,
                             contentDescription = null
                         )
-                    }
+                    },
+                    mensagemErro = if (erroTelefone) {
+                        "Informe um telefone válido."
+                    } else null,
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -232,53 +273,65 @@ fun DadosPessoaisScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Próximo
-            Button(
-                onClick = {
-                    onProximo(
-                        DadosPessoais(
-                            nome = nome,
-                            cpf = cpf,
-                            dataNascimento = dataNascimento,
-                            email = email,
-                            telefone = telefone
-                        )
+            if (!tecladoAberto) {
+                // Próximo
+                Button(
+                    onClick = {
+                        tentouProximo = true
+
+                        if (
+                            Validadores.validarNome(nome) &&
+                            Validadores.validarCpf(cpf) &&
+                            Validadores.validarDataNascimento(dataNascimento) &&
+                            Validadores.validarEmail(email) &&
+                            Validadores.validarTelefone(telefone)
+                        ) {
+                            onProximo(
+                                DadosPessoais(
+                                    nome = nome.trim(),
+                                    cpf = cpf,
+                                    dataNascimento = dataNascimento,
+                                    email = email.trim(),
+                                    telefone = telefone
+                                )
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.azul_botao)
                     )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colorResource(R.color.azul_botao)
-                )
-            ) {
-                Text(
-                    text = "Próximo",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = colorResource(R.color.branco)
-                )
-            }
+                ) {
+                    Text(
+                        text = "Próximo",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = colorResource(R.color.branco)
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedButton(
-                onClick = onVoltar,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp),
-                shape = RoundedCornerShape(50),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    azulBorda
-                )
-            ) {
-                Text(
-                    text = "Voltar",
-                    fontSize = 19.sp,
-                    color = colorResource(R.color.azul_entrar)
-                )
+                OutlinedButton(
+                    onClick = onVoltar,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp),
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        azulBorda
+                    )
+                ) {
+                    Text(
+                        text = "Voltar",
+                        fontSize = 19.sp,
+                        color = colorResource(R.color.azul_entrar)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(34.dp))
@@ -339,11 +392,13 @@ private fun CampoDadosPessoais(
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     imeAction: ImeAction = ImeAction.Next,
+    mensagemErro: String? = null,
     icone: @Composable () -> Unit
 ) {
     OutlinedTextField(
         value = valor,
         onValueChange = onValorChange,
+        isError = mensagemErro != null,
         visualTransformation = visualTransformation,
         modifier = Modifier
             .fillMaxWidth()
@@ -370,6 +425,13 @@ private fun CampoDadosPessoais(
             imeAction = imeAction
         ),
         colors = OutlinedTextFieldDefaults.colors(
+            errorBorderColor = Color.Red,
+            errorTextColor = colorResource(R.color.azul_texto),
+            errorCursorColor = colorResource(R.color.azul_texto),
+            errorLabelColor = colorResource(R.color.azul_texto),
+            errorLeadingIconColor = colorResource(R.color.azul_texto),
+            errorPlaceholderColor = Color.Black.copy(alpha = 0.4f),
+            errorContainerColor = Color.Transparent,
             focusedPlaceholderColor = Color.Black.copy(alpha = 0.4f),
             unfocusedPlaceholderColor = Color.Black.copy(alpha = 0.4f),
             focusedBorderColor = colorResource(R.color.azul_botao),
@@ -384,4 +446,14 @@ private fun CampoDadosPessoais(
             unfocusedLeadingIconColor = colorResource(R.color.azul_texto)
         )
     )
+
+    if (mensagemErro != null) {
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = mensagemErro,
+            fontSize = 14.sp,
+            color = Color.Red
+        )
+    }
 }

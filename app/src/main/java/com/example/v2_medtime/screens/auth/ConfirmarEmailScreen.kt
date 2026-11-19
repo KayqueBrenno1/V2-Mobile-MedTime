@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -19,9 +21,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -99,6 +103,7 @@ fun ConfirmarEmailScreen(
     }
 
     val density = LocalDensity.current
+    val tecladoAberto = WindowInsets.ime.getBottom(density) > 0
 
     LaunchedEffect(codigoIncorreto) {
         if (codigoIncorreto) {
@@ -135,9 +140,14 @@ fun ConfirmarEmailScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp)
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(
+                modifier = Modifier.height(
+                    if (tecladoAberto) 16.dp else 60.dp
+                )
+            )
 
             if (mostrarIndicador) {
                 Row(
@@ -150,7 +160,7 @@ fun ConfirmarEmailScreen(
                             modifier = Modifier
                                 .size(28.dp)
                                 .background(
-                                    color = if (etapa <= 2) {
+                                    color = if (etapa == 3) {
                                         azulBotao
                                     } else {
                                         colorResource(R.color.azul_curva)
@@ -161,7 +171,7 @@ fun ConfirmarEmailScreen(
                         ) {
                             Text(
                                 text = etapa.toString(),
-                                color = if (etapa <= 2) {
+                                color = if (etapa == 3) {
                                     colorResource(R.color.branco)
                                 } else {
                                     azulTexto
@@ -180,7 +190,11 @@ fun ConfirmarEmailScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(65.dp))
+            Spacer(
+                modifier = Modifier.height(
+                    if (tecladoAberto) 24.dp else 65.dp
+                )
+            )
 
             Text(
                 text = titulo,
@@ -321,27 +335,29 @@ fun ConfirmarEmailScreen(
                 color = colorResource(R.color.azul_entrar)
             )
 
-            Spacer(modifier = Modifier.height(150.dp))
+            if (!tecladoAberto) {
+                Spacer(modifier = Modifier.height(110.dp))
 
-            OutlinedButton(
-                onClick = onVoltar,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp),
-                shape = RoundedCornerShape(50),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    azulBorda
-                )
-            ) {
-                Text(
-                    text = "Voltar",
-                    fontSize = 19.sp,
-                    color = colorResource(R.color.azul_entrar)
-                )
+                OutlinedButton(
+                    onClick = onVoltar,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp),
+                    shape = RoundedCornerShape(50),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        azulBorda
+                    )
+                ) {
+                    Text(
+                        text = "Voltar",
+                        fontSize = 19.sp,
+                        color = colorResource(R.color.azul_entrar)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

@@ -65,6 +65,7 @@ class ConfirmarEmailViewModel : ViewModel() {
     fun registrarErro(mensagem: String) {
         carregando = false
         mensagemErro = mensagem
+        ultimoCodigoVerificado = null
     }
 
     fun registrarConfirmacao() {
@@ -87,5 +88,9 @@ class ConfirmarEmailViewModel : ViewModel() {
         ultimoCodigoVerificado = codigo
 
         return true
+    }
+
+    fun permitirNovaTentativa() {
+        ultimoCodigoVerificado = null
     }
 }
