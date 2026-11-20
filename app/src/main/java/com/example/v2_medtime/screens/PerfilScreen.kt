@@ -57,7 +57,8 @@ fun PerfilScreen(
     navController: NavController,
     viewModel: PerfilViewModel,
     onNavigateTab: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    mostrarBarraInferior: Boolean = true
 ) {
     val context = LocalContext.current
     val perfil = viewModel.perfil
@@ -76,10 +77,12 @@ fun PerfilScreen(
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                AgendaBottomBar(
-                    selectedTab = "Perfil",
-                    onTabSelected = onNavigateTab
-                )
+                if (mostrarBarraInferior) {
+                    AgendaBottomBar(
+                        selectedTab = "Perfil",
+                        onTabSelected = onNavigateTab
+                    )
+                }
             }
         ) { innerPadding ->
             Column(
@@ -93,7 +96,7 @@ fun PerfilScreen(
                         bottom = innerPadding.calculateBottomPadding() + 16.dp
                     )
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(35.dp))
 
                 Text(
                     text = "Meu perfil",

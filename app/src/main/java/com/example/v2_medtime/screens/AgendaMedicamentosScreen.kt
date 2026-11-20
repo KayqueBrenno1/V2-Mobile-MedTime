@@ -54,12 +54,13 @@ fun AgendaMedicamentosScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
     viewModel: MedicamentoViewModel,
-    onNavigateTab: (String) -> Unit = {}
+    onNavigateTab: (String) -> Unit = {},
+    mostrarBarraInferior: Boolean = true
 ) {
     var termoBusca by remember { mutableStateOf("") }
     var filtroSelecionado by remember { mutableStateOf("Todos") }
 
-    val filtros = listOf("Todos", "Ativos", "Pausados", "Concluídos")
+    val filtros = listOf("Todos")
     val azulPrincipal = Color(0xFF1592D0)
     val textoEscuro = Color(0xFF0F172A)
     val textoSecundario = Color(0xFF64748B)
@@ -82,10 +83,12 @@ fun AgendaMedicamentosScreen(
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                AgendaBottomBar(
-                    selectedTab = "Medicamentos",
-                    onTabSelected = onNavigateTab
-                )
+                if (mostrarBarraInferior) {
+                    AgendaBottomBar(
+                        selectedTab = "Medicamentos",
+                        onTabSelected = onNavigateTab
+                    )
+                }
             }
         ) { innerPadding ->
             Column(

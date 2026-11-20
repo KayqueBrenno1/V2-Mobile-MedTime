@@ -1,6 +1,8 @@
 
 package com.example.v2_medtime.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.SnackbarHost
@@ -23,21 +25,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-
 import com.example.v2_medtime.data.remote.GoogleAuthManager
-
-import com.example.v2_medtime.screens.AgendaMedicamentosScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
 import com.example.v2_medtime.screens.DetalhesMedicamentoScreen
 import com.example.v2_medtime.screens.EditarPerfilScreen
 import com.example.v2_medtime.screens.EscolhaCadastroMedicamentoScreen
 import com.example.v2_medtime.screens.EstoqueMedicamentoScreen
-import com.example.v2_medtime.screens.HistoricoScreen
-import com.example.v2_medtime.screens.InicioScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.MedicamentosIdentificadosScreen
-import com.example.v2_medtime.screens.PerfilScreen
-
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
 import com.example.v2_medtime.screens.auth.CadastroRealizadoScreen
 import com.example.v2_medtime.screens.auth.ConfirmarEmailScreen
@@ -50,9 +45,7 @@ import com.example.v2_medtime.screens.auth.RedefinirSenhaScreen
 import com.example.v2_medtime.screens.auth.SenhaRedefinidaScreen
 import com.example.v2_medtime.screens.auth.SplashScreen
 import com.example.v2_medtime.screens.auth.VerificarCodigoSenhaScreen
-
 import com.example.v2_medtime.screens.components.LoadingOverlay
-
 import com.example.v2_medtime.viewmodel.CadastroViewModel
 import com.example.v2_medtime.viewmodel.ConfirmarEmailViewModel
 import com.example.v2_medtime.viewmodel.HistoricoViewModel
@@ -61,7 +54,6 @@ import com.example.v2_medtime.viewmodel.LoadingViewModel
 import com.example.v2_medtime.viewmodel.LoginViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 import com.example.v2_medtime.viewmodel.PerfilViewModel
-
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -198,7 +190,7 @@ fun AppNavigation(
 
     LaunchedEffect(loginViewModel.loginConcluido) {
         if (loginViewModel.loginConcluido) {
-            navController.navigate("inicio") {
+            navController.navigate("abas_principais") {
                 popUpTo(navController.graph.id) {
                     inclusive = true
                 }
@@ -229,22 +221,20 @@ fun AppNavigation(
 
     // NAVEGAÇÃO PELA BARRA INFERIOR
     val navegarPelaNavbar: (String) -> Unit = { aba ->
-        val rotaDestino = when (aba) {
-            "Início" -> "inicio"
-            "Medicamentos" -> "agenda_medicamentos"
-            "Histórico" -> "historico"
-            "Perfil" -> "perfil"
+        val pagina = when (aba) {
+            "Início" -> 0
+            "Medicamentos" -> 1
+            "Histórico" -> 2
+            "Perfil" -> 3
             else -> null
         }
 
-        if (rotaDestino != null) {
-            navController.navigate(rotaDestino) {
+        if (pagina != null) {
+            navController.navigate("abas_principais/$pagina") {
                 popUpTo("inicio") {
-                    saveState = true
+                    inclusive = true
                 }
-
                 launchSingleTop = true
-                restoreState = true
             }
         }
     }
@@ -259,13 +249,36 @@ fun AppNavigation(
                 .fillMaxSize()
                 .blur(
                     if (loadingViewModel.isLoading) 12.dp else 0.dp
+                ),
+
+            enterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300)
                 )
+            },
+
+            exitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(300)
+                )
+            },
+
+            popEnterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300)
+                )
+            },
+
+            popExitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(300)
+                )
+            }
         ) {
-
-            // ==========================================
-            // SPLASH SCREEN
-            // ==========================================
-
             composable("splash") {
                 LaunchedEffect(Unit) {
                     delay(1800)
@@ -282,10 +295,6 @@ fun AppNavigation(
                 SplashScreen()
             }
 
-            // ==========================================
-            // BOAS-VINDAS
-            // ==========================================
-
             composable("boas_vindas") {
                 BoasVindasScreen(
                     onComecar = {
@@ -297,10 +306,6 @@ fun AppNavigation(
                     }
                 )
             }
-
-            // ==========================================
-            // ESCOLHA DE PERFIL
-            // ==========================================
 
             composable("escolha_perfil") {
                 EscolhaPerfilScreen(
@@ -331,10 +336,6 @@ fun AppNavigation(
                     }
                 )
             }
-
-            // ==========================================
-            // DADOS PESSOAIS
-            // ==========================================
 
             composable("dados_pessoais/{perfil}") { backStackEntry ->
                 val perfil = backStackEntry.arguments
@@ -382,10 +383,6 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // CRIAR SENHA
-            // ==========================================
-
             composable("criar_senha") {
                 CriarSenhaScreen(
                     senhaInicial = cadastroViewModel.obterSenha().orEmpty(),
@@ -398,10 +395,6 @@ fun AppNavigation(
                     }
                 )
             }
-
-            // ==========================================
-            // CONFIRMAR EMAIL
-            // ==========================================
 
             composable("confirmar_email") {
                 ConfirmarEmailScreen(
@@ -422,10 +415,6 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // CADASTRO REALIZADO
-            // ==========================================
-
             composable("cadastro_realizado") {
                 CadastroRealizadoScreen(
                     onAcessarConta = {
@@ -439,10 +428,6 @@ fun AppNavigation(
                     }
                 )
             }
-
-            // ==========================================
-            // LOGIN
-            // ==========================================
 
             composable("login") {
                 LoginScreen(
@@ -465,10 +450,6 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // RECUPERAR SENHA
-            // ==========================================
-
             composable("recuperar_senha") {
                 RecuperarSenhaScreen(
                     onVoltar = {
@@ -483,10 +464,6 @@ fun AppNavigation(
                     }
                 )
             }
-
-            // ==========================================
-            // VERIFICAR CÓDIGO
-            // ==========================================
 
             composable("verificar_codigo_senha") {
                 VerificarCodigoSenhaScreen(
@@ -504,10 +481,6 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // REDEFINIR SENHA
-            // ==========================================
-
             composable("redefinir_senha") {
                 RedefinirSenhaScreen(
                     onVoltar = {
@@ -518,10 +491,6 @@ fun AppNavigation(
                     }
                 )
             }
-
-            // ==========================================
-            // SENHA REDEFINIDA
-            // ==========================================
 
             composable("senha_redefinida") {
                 SenhaRedefinidaScreen(
@@ -537,57 +506,15 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // DASHBOARD
-            // ==========================================
-
-            composable("inicio") {
-                InicioScreen(
+            composable("abas_principais") {
+                AbasPrincipais(
                     navController = navController,
-                    viewModel = inicioViewModel,
-                    onNavigateTab = navegarPelaNavbar
+                    inicioViewModel = inicioViewModel,
+                    medicamentoViewModel = medicamentoViewModel,
+                    historicoViewModel = historicoViewModel,
+                    perfilViewModel = perfilViewModel
                 )
             }
-
-            // ==========================================
-            // AGENDA DE MEDICAMENTOS
-            // ==========================================
-
-            composable("agenda_medicamentos") {
-                AgendaMedicamentosScreen(
-                    navController = navController,
-                    viewModel = medicamentoViewModel,
-                    onNavigateTab = navegarPelaNavbar
-                )
-            }
-
-            // ==========================================
-            // HISTÓRICO
-            // ==========================================
-
-            composable("historico") {
-                HistoricoScreen(
-                    navController = navController,
-                    viewModel = historicoViewModel,
-                    onNavigateTab = navegarPelaNavbar
-                )
-            }
-
-            // ==========================================
-            // PERFIL
-            // ==========================================
-
-            composable("perfil") {
-                PerfilScreen(
-                    navController = navController,
-                    viewModel = perfilViewModel,
-                    onNavigateTab = navegarPelaNavbar
-                )
-            }
-
-            // ==========================================
-            // EDITAR PERFIL
-            // ==========================================
 
             composable("editar_perfil") {
                 EditarPerfilScreen(
@@ -596,10 +523,6 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // CADASTRO DE MEDICAMENTO
-            // ==========================================
-
             composable("MedicamentoScreen") {
                 MedicamentoScreen(
                     navController = navController,
@@ -607,20 +530,12 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // CADASTRO REALIZADO DE MEDICAMENTO
-            // ==========================================
-
             composable("CadastroSucessoMedicamento") {
                 CadastroSucessoMedicamentoScreen(
                     navController = navController,
                     viewModel = medicamentoViewModel
                 )
             }
-
-            // ==========================================
-            // DETALHES DO MEDICAMENTO
-            // ==========================================
 
             composable("detalhes_medicamento/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments
@@ -634,10 +549,6 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // EDITAR MEDICAMENTO
-            // ==========================================
-
             composable("editar_medicamento/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments
                     ?.getString("id")
@@ -649,10 +560,6 @@ fun AppNavigation(
                     medicamentoId = id
                 )
             }
-
-            // ==========================================
-            // ESTOQUE DO MEDICAMENTO
-            // ==========================================
 
             composable("estoque_medicamento/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments
@@ -666,10 +573,6 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // ESCOLHER TIPO DE CADASTRO
-            // ==========================================
-
             composable("escolha_cadastro_medicamento") {
                 EscolhaCadastroMedicamentoScreen(
                     navController = navController,
@@ -677,20 +580,12 @@ fun AppNavigation(
                 )
             }
 
-            // ==========================================
-            // MEDICAMENTOS IDENTIFICADOS PELO OCR
-            // ==========================================
-
             composable("medicamentos_identificados") {
                 MedicamentosIdentificadosScreen(
                     navController = navController,
                     viewModel = medicamentoViewModel
                 )
             }
-
-            // ==========================================
-            // EDITAR MEDICAMENTO IDENTIFICADO PELO OCR
-            // ==========================================
 
             composable("editar_ocr/{ocrId}") { backStackEntry ->
                 val ocrId = backStackEntry.arguments
@@ -705,10 +600,7 @@ fun AppNavigation(
             }
         }
 
-        // ==========================================
         // MENSAGENS E CARREGAMENTO
-        // ==========================================
-
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter)

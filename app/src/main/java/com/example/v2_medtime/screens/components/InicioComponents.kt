@@ -144,7 +144,6 @@ fun ProximoMedicamentoCard(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable(onClick = onAbrirDetalhes)
                 ) {
                     Text(
                         text = "${item.nome} ${item.concentracao} ${item.unidadeMedida}".trim(),

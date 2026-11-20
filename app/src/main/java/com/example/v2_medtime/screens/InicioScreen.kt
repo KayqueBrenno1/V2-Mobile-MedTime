@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,7 +38,8 @@ fun InicioScreen(
     navController: NavController,
     viewModel: InicioViewModel,
     onNavigateTab: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    mostrarBarraInferior: Boolean = true
 ) {
     val context = LocalContext.current
 
@@ -51,10 +53,12 @@ fun InicioScreen(
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                AgendaBottomBar(
-                    selectedTab = "Início",
-                    onTabSelected = onNavigateTab
-                )
+                if (mostrarBarraInferior) {
+                    AgendaBottomBar(
+                        selectedTab = "Início",
+                        onTabSelected = onNavigateTab
+                    )
+                }
             }
         ) { innerPadding ->
             LazyColumn(
@@ -71,20 +75,14 @@ fun InicioScreen(
                 // 1. Cabeçalho: MedTime + Olá, Kayque 👋
                 item {
                     Column {
-                        Text(
-                            text = "MedTime",
-                            color = Color(0xFF1B4965),
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(35.dp))
                         Text(
                             text = "Olá, ${viewModel.nomeUsuario} \uD83D\uDC4B",
                             color = Color(0xFF0F172A),
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "Acompanhe sua medicação de forma simples.",
                             color = Color(0xFF64748B),
@@ -95,6 +93,7 @@ fun InicioScreen(
 
                 // 2. Filtro Horizontal de Dias (Seg 10 ... Sex 14)
                 item {
+                    Spacer(modifier = Modifier.height(20.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

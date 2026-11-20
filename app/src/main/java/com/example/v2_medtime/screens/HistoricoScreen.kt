@@ -44,7 +44,8 @@ fun HistoricoScreen(
     navController: NavController,
     viewModel: HistoricoViewModel,
     onNavigateTab: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    mostrarBarraInferior: Boolean = true
 ) {
     var termoBusca by remember { mutableStateOf("") }
 
@@ -67,10 +68,12 @@ fun HistoricoScreen(
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                AgendaBottomBar(
-                    selectedTab = "Histórico",
-                    onTabSelected = onNavigateTab
-                )
+                if (mostrarBarraInferior) {
+                    AgendaBottomBar(
+                        selectedTab = "Histórico",
+                        onTabSelected = onNavigateTab
+                    )
+                }
             }
         ) { innerPadding ->
             Column(
@@ -79,7 +82,7 @@ fun HistoricoScreen(
                     .padding(innerPadding)
                     .padding(horizontal = 20.dp)
             ) {
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(35.dp))
 
                 Text(
                     text = "Histórico",
