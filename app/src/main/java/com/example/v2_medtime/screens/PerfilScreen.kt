@@ -1,6 +1,7 @@
 package com.example.v2_medtime.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,15 +22,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,11 +45,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.v2_medtime.R
 import com.example.v2_medtime.screens.components.AgendaBottomBar
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.viewmodel.PerfilViewModel
@@ -58,7 +63,9 @@ fun PerfilScreen(
     viewModel: PerfilViewModel,
     onNavigateTab: (String) -> Unit,
     modifier: Modifier = Modifier,
-    mostrarBarraInferior: Boolean = true
+    mostrarBarraInferior: Boolean = true,
+    espacamentoInferiorConteudo: Dp = 0.dp,
+    perfilCuidador: Boolean = false
 ) {
     val context = LocalContext.current
     val perfil = viewModel.perfil
@@ -77,7 +84,13 @@ fun PerfilScreen(
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                if (mostrarBarraInferior) {
+                if (perfilCuidador) {
+                    BarraInferiorPacientes(
+                        onPacientes = { navController.popBackStack() },
+                        onPerfil = {},
+                        perfilSelecionado = true
+                    )
+                } else if (mostrarBarraInferior) {
                     AgendaBottomBar(
                         selectedTab = "Perfil",
                         onTabSelected = onNavigateTab
@@ -88,12 +101,12 @@ fun PerfilScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
+                    .padding(top = innerPadding.calculateTopPadding())
                     .verticalScroll(rememberScrollState())
                     .padding(
                         start = 20.dp,
                         end = 20.dp,
-                        bottom = innerPadding.calculateBottomPadding() + 16.dp
+                        bottom = maxOf(innerPadding.calculateBottomPadding(), espacamentoInferiorConteudo) + 16.dp
                     )
             ) {
                 Spacer(modifier = Modifier.height(35.dp))
@@ -166,15 +179,17 @@ fun PerfilScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PerfilOpcaoCard(
-                        icon = Icons.Outlined.PersonOutline,
-                        iconeFundo = Color(0xFFE5F3FD),
-                        iconeCor = Color(0xFF1592D0),
-                        titulo = "Vincular cuidador",
-                        onClick = {
-                            Toast.makeText(context, "Vincular cuidador em breve", Toast.LENGTH_SHORT).show()
-                        }
-                    )
+                    if (!perfilCuidador) {
+                        PerfilOpcaoCard(
+                            icon = Icons.Outlined.PersonOutline,
+                            iconeFundo = Color(0xFFE5F3FD),
+                            iconeCor = Color(0xFF1592D0),
+                            titulo = "Vincular cuidador",
+                            onClick = {
+                                navController.navigate("inserir_codigo_vinculo")
+                            }
+                        )
+                    }
 
                     PerfilOpcaoCard(
                         icon = Icons.Outlined.Lock,
@@ -182,12 +197,12 @@ fun PerfilScreen(
                         iconeCor = Color(0xFF16A37A),
                         titulo = "Alterar senha",
                         onClick = {
-                            navController.navigate("recuperar_senha")
+                            navController.navigate("alterar_senha")
                         }
                     )
 
                     PerfilOpcaoCard(
-                        icon = Icons.Outlined.Notifications,
+                        icon = Icons.Outlined.LocationOn,
                         iconeFundo = Color(0xFFE5F3FD),
                         iconeCor = Color(0xFF1592D0),
                         titulo = "Localização",
@@ -235,10 +250,45 @@ fun PerfilScreen(
         if (mostrarDialogoSair) {
             AlertDialog(
                 onDismissRequest = { mostrarDialogoSair = false },
-                title = { Text("Sair da conta") },
-                text = { Text("Deseja realmente desconectar da sua conta MedTime?") },
+                shape = RoundedCornerShape(24.dp),
+                containerColor = Color.White,
+                icon = {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(Color(0xFFFDECEC), RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.Logout,
+                            contentDescription = null,
+                            tint = Color(0xFFB91C1C),
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                },
+                title = {
+                    Text(
+                        text = "Sair da conta?",
+                        color = textoEscuro,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Você precisará entrar novamente para acessar sua conta.",
+                        color = textoSecundario,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp
+                    )
+                },
                 confirmButton = {
-                    TextButton(
+                    Button(
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFB91C1C),
+                            contentColor = Color.White
+                        ),
                         onClick = {
                             mostrarDialogoSair = false
                             viewModel.sairDaConta {
@@ -249,12 +299,18 @@ fun PerfilScreen(
                             }
                         }
                     ) {
-                        Text("Sair", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                        Text("Sair", fontWeight = FontWeight.SemiBold)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { mostrarDialogoSair = false }) {
-                        Text("Cancelar")
+                    OutlinedButton(
+                        onClick = { mostrarDialogoSair = false },
+                        border = BorderStroke(1.dp, colorResource(R.color.azul_borda)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFF086FA7)
+                        )
+                    ) {
+                        Text("Cancelar", fontWeight = FontWeight.SemiBold)
                     }
                 }
             )

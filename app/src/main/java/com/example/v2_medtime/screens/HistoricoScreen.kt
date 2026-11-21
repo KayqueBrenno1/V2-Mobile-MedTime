@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -45,7 +46,8 @@ fun HistoricoScreen(
     viewModel: HistoricoViewModel,
     onNavigateTab: (String) -> Unit,
     modifier: Modifier = Modifier,
-    mostrarBarraInferior: Boolean = true
+    mostrarBarraInferior: Boolean = true,
+    espacamentoInferiorConteudo: Dp = 0.dp
 ) {
     var termoBusca by remember { mutableStateOf("") }
 
@@ -136,7 +138,7 @@ fun HistoricoScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 16.dp),
+                    contentPadding = PaddingValues(bottom = espacamentoInferiorConteudo + 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(

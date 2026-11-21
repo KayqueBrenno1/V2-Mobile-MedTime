@@ -1,39 +1,25 @@
-// data/repository/PerfilRepository.kt
 package com.example.v2_medtime.data.repository
 
-import android.net.Uri
 import com.example.v2_medtime.data.model.PerfilUsuario
-import java.io.File
+import com.example.v2_medtime.data.remote.RetrofitClient
+import com.google.gson.JsonObject
+import retrofit2.Response
 
-interface PerfilRepository {
-    suspend fun obterPerfil(): Result<PerfilUsuario>
-    suspend fun atualizarPerfil(
-        perfil: PerfilUsuario,
-        novaFotoFile: File?,
-        novaFotoUri: Uri?
-    ): Result<PerfilUsuario>
-    suspend fun encerrarSessao(): Result<Unit>
-}
+class PerfilRepository {
 
-class FakePerfilRepository : PerfilRepository {
-    private var perfilAtual = PerfilUsuario()
+    suspend fun atualizarPerfil(perfil: PerfilUsuario, dataNascimentoApi: String): Response<JsonObject> {
+        val dados = JsonObject().apply {
+            add("usuario", JsonObject().apply {
+                addProperty("nome", perfil.nomeCompleto.trim())
+                addProperty("email", perfil.email.trim())
+                addProperty("data_nascimento", dataNascimentoApi)
+                if (perfil.cpf.isNotBlank()) {
+                    addProperty("cpf", perfil.cpf.filter { it.isDigit() })
+                }
+                perfil.fotoUrlRemota?.let { addProperty("foto", it) }
+            })
+        }
 
-    override suspend fun obterPerfil(): Result<PerfilUsuario> {
-        return Result.success(perfilAtual)
-    }
-
-    override suspend fun atualizarPerfil(
-        perfil: PerfilUsuario,
-        novaFotoFile: File?,
-        novaFotoUri: Uri?
-    ): Result<PerfilUsuario> {
-        perfilAtual = perfil.copy(
-            fotoUriLocal = novaFotoUri ?: perfilAtual.fotoUriLocal
-        )
-        return Result.success(perfilAtual)
-    }
-
-    override suspend fun encerrarSessao(): Result<Unit> {
-        return Result.success(Unit)
+        return RetrofitClient.api.atualizarUsuario(perfil.id, dados)
     }
 }

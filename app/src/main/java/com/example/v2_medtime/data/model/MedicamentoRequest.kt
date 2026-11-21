@@ -12,5 +12,6 @@ data class MedicamentoRequest (
     val quantidadeTotal: String = "",
     val descricao: String = "",
     val frequencia: String = "",
-    val unidadeMedida: String = ""
+    val unidadeMedida: String = "",
+    val imagemRemota: String = ""
 )

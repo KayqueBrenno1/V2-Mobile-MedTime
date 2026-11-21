@@ -165,13 +165,6 @@ fun BoasVindasScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text(
-                        text = "Seu cuidado,\nno tempo certo.",
-                        fontSize = 22.sp,
-                        lineHeight = 28.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AzulEscuro
-                    )
                 }
 
                 // CÁPSULAS
@@ -194,8 +187,8 @@ fun BoasVindasScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .offset(
-                            x = (-25).dp,
-                            y = (12f + movimentoRelogio).dp
+                            x = (-35).dp,
+                            y = (8f + movimentoRelogio).dp
                         )
                         .size(280.dp),
                     contentScale = ContentScale.Fit
@@ -265,8 +258,8 @@ fun BoasVindasScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    fontSize = 38.sp,
-                    lineHeight = 43.sp,
+                    fontSize = 32.sp,
+                    lineHeight = 35.sp,
                     fontWeight = FontWeight.Bold
                 )
 

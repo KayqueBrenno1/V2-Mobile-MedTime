@@ -14,14 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
@@ -41,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -55,7 +54,8 @@ fun AgendaMedicamentosScreen(
     navController: NavController,
     viewModel: MedicamentoViewModel,
     onNavigateTab: (String) -> Unit = {},
-    mostrarBarraInferior: Boolean = true
+    mostrarBarraInferior: Boolean = true,
+    espacamentoInferiorConteudo: Dp = 0.dp
 ) {
     var termoBusca by remember { mutableStateOf("") }
     var filtroSelecionado by remember { mutableStateOf("Todos") }
@@ -97,32 +97,19 @@ fun AgendaMedicamentosScreen(
                     .padding(innerPadding)
                     .padding(horizontal = 20.dp)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(35.dp))
 
-                // Cabeçalho: < Medicamentos (+)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { navController.popBackStack() }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "Voltar",
-                            tint = textoEscuro,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Medicamentos",
-                            color = textoEscuro,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = "Medicamentos",
+                        color = textoEscuro,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
                     // Botão circular azul "+" para adicionar novo medicamento
                     Box(
@@ -217,7 +204,7 @@ fun AgendaMedicamentosScreen(
                 // Lista de Medicamentos
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 16.dp),
+                    contentPadding = PaddingValues(bottom = espacamentoInferiorConteudo + 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     itemsIndexed(

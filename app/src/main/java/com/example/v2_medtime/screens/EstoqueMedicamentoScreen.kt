@@ -1,6 +1,7 @@
 package com.example.v2_medtime.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,13 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.Button
@@ -38,11 +40,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.v2_medtime.R
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 
@@ -63,7 +67,6 @@ fun EstoqueMedicamentoScreen(
 
     val dados = item.dados
     val quantidadeInicial = dados.quantidadeTotal.toIntOrNull() ?: 0
-    val dosePorTomada = dados.dose.toIntOrNull()?.coerceAtLeast(1) ?: 1
 
     var quantidadeAtual by remember(quantidadeInicial) { mutableIntStateOf(quantidadeInicial) }
 
@@ -82,34 +85,26 @@ fun EstoqueMedicamentoScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
         ) {
-            Column {
-                Spacer(modifier = Modifier.height(16.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(35.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clickable { navController.popBackStack() }
-                        .padding(vertical = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "Voltar",
-                        tint = textoEscuro,
-                        modifier = Modifier.size(26.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Controle de Estoque",
-                        color = textoEscuro,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "Controle de Estoque",
+                    color = textoEscuro,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(50.dp))
 
                 // Card Central de Quantidade
                 Surface(
@@ -213,30 +208,6 @@ fun EstoqueMedicamentoScreen(
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Atalho rápido para descontar a dose tomada
-                        OutlinedButton(
-                            onClick = {
-                                quantidadeAtual = (quantidadeAtual - dosePorTomada).coerceAtLeast(0)
-                            },
-                            shape = CircleShape,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircleOutline,
-                                contentDescription = null,
-                                tint = Color(0xFF16A34A),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Registrar dose tomada (-$dosePorTomada)",
-                                color = Color(0xFF16A34A),
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
                     }
                 }
             }
@@ -252,7 +223,6 @@ fun EstoqueMedicamentoScreen(
                 enabled = !viewModel.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 28.dp)
                     .height(54.dp),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(containerColor = azulPrincipal)
@@ -264,6 +234,25 @@ fun EstoqueMedicamentoScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp),
+                shape = CircleShape,
+                border = BorderStroke(1.dp, colorResource(R.color.azul_borda))
+            ) {
+                Text(
+                    text = "Voltar",
+                    fontSize = 19.sp,
+                    color = colorResource(R.color.azul_entrar)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }

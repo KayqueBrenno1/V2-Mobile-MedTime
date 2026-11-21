@@ -2,9 +2,6 @@ package com.example.v2_medtime.screens
 
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,14 +21,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,12 +35,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,13 +51,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.v2_medtime.screens.components.BackgroundPadrao
+import com.example.v2_medtime.screens.components.SeletorFoto
+import com.example.v2_medtime.utils.FormatadorCampos
+import com.example.v2_medtime.utils.Validadores
 import com.example.v2_medtime.viewmodel.PerfilViewModel
-import java.io.File
-import java.io.FileOutputStream
 
 @Composable
 fun EditarPerfilScreen(
@@ -73,12 +74,11 @@ fun EditarPerfilScreen(
     var nomeCompleto by remember { mutableStateOf(perfilAtual.nomeCompleto) }
     var email by remember { mutableStateOf(perfilAtual.email) }
     var dataNascimento by remember { mutableStateOf(perfilAtual.dataNascimento) }
-    var novaFotoUri by remember { mutableStateOf<Uri?>(perfilAtual.fotoUriLocal) }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> if (uri != null) novaFotoUri = uri }
-    )
+    val cpfOriginal = perfilAtual.cpf.filter { it.isDigit() }
+    var cpf by remember(cpfOriginal) { mutableStateOf(cpfOriginal) }
+    val cpfInvalido = cpf != cpfOriginal && !Validadores.validarCpf(cpf)
+    var fotoSelecionada by rememberSaveable { mutableStateOf<Uri?>(perfilAtual.fotoUriLocal) }
+    var mostrarSeletorFoto by remember { mutableStateOf(false) }
 
     val textoEscuro = Color(0xFF0F172A)
 
@@ -94,6 +94,7 @@ fun EditarPerfilScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
@@ -128,45 +129,36 @@ fun EditarPerfilScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Avatar Central com Botão Flutuante de Câmera
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(modifier = Modifier.size(124.dp)) {
-                        AvatarCircularUsuario(
-                            nome = nomeCompleto,
-                            fotoModel = novaFotoUri ?: perfilAtual.fotoUrlRemota,
-                            tamanho = 120,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
+                AvatarCircularUsuario(
+                    nome = nomeCompleto,
+                    fotoModel = fotoSelecionada ?: perfilAtual.fotoUrlRemota,
+                    tamanho = 120,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
 
-                        Surface(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .align(Alignment.BottomEnd)
-                                .clickable {
-                                    galleryLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                },
-                            shape = CircleShape,
-                            color = Color.White,
-                            shadowElevation = 4.dp
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CameraAlt,
-                                    contentDescription = "Alterar foto",
-                                    tint = Color(0xFF1592D0),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
+                TextButton(
+                    onClick = { mostrarSeletorFoto = true },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text("Alterar foto")
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                if (fotoSelecionada != null) {
+                    Text(
+                        text = "A foto fica visível nesta sessão.",
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        color = Color(0xFF64748B),
+                        fontSize = 13.sp
+                    )
+                }
+
+                SeletorFoto(
+                    aberto = mostrarSeletorFoto,
+                    onFechar = { mostrarSeletorFoto = false },
+                    onFotoSelecionada = { fotoSelecionada = it }
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // Campos de Edição
                 Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -191,13 +183,14 @@ fun EditarPerfilScreen(
                         onValueChange = { dataNascimento = it }
                     )
 
-                    // CPF (Bloqueado em cinza com cadeado)
                     CampoPerfilItem(
                         icon = Icons.Outlined.Badge,
-                        label = "CPF",
-                        value = perfilAtual.cpf,
-                        onValueChange = {},
-                        enabled = false
+                        label = "CPF (opcional)",
+                        value = cpf,
+                        onValueChange = { cpf = it.filter { digito -> digito.isDigit() }.take(11) },
+                        tipoTeclado = KeyboardType.Number,
+                        transformacaoVisual = FormatadorCampos.cpfVisualTransformation(),
+                        mensagemErro = if (cpfInvalido) "Informe um CPF válido." else null
                     )
                 }
 
@@ -207,30 +200,18 @@ fun EditarPerfilScreen(
             // Botão Salvar Alterações
             Button(
                 onClick = {
-                    var fotoFile: File? = null
-                    novaFotoUri?.let { uri ->
-                        try {
-                            val tempFile = File(context.cacheDir, "perfil_${System.currentTimeMillis()}.jpg")
-                            context.contentResolver.openInputStream(uri)?.use { input ->
-                                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
-                            }
-                            fotoFile = tempFile
-                        } catch (_: Exception) {
-                        }
-                    }
-
                     viewModel.salvarAlteracoesPerfil(
                         nomeCompleto = nomeCompleto,
                         email = email,
                         dataNascimento = dataNascimento,
-                        novaFotoFile = fotoFile,
-                        novaFotoUri = novaFotoUri
+                        cpf = if (cpf == cpfOriginal) perfilAtual.cpf else cpf,
+                        fotoUriLocal = fotoSelecionada
                     ) {
                         Toast.makeText(context, "Perfil atualizado com sucesso!", Toast.LENGTH_SHORT).show()
                         navController.popBackStack()
                     }
                 },
-                enabled = !viewModel.isLoading && nomeCompleto.isNotBlank() && email.isNotBlank(),
+                enabled = !viewModel.isLoading && nomeCompleto.isNotBlank() && email.isNotBlank() && !cpfInvalido,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 20.dp)
@@ -263,7 +244,9 @@ private fun CampoPerfilItem(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    enabled: Boolean = true
+    tipoTeclado: KeyboardType = KeyboardType.Text,
+    transformacaoVisual: VisualTransformation = VisualTransformation.None,
+    mensagemErro: String? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -298,19 +281,11 @@ private fun CampoPerfilItem(
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
-                enabled = enabled,
+                isError = mensagemErro != null,
+                keyboardOptions = KeyboardOptions(keyboardType = tipoTeclado),
+                visualTransformation = transformacaoVisual,
                 singleLine = true,
                 textStyle = TextStyle(fontSize = 15.sp),
-                trailingIcon = if (!enabled) {
-                    {
-                        Icon(
-                            imageVector = Icons.Outlined.Lock,
-                            contentDescription = "Campo bloqueado",
-                            tint = Color(0xFF64748B),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                } else null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -318,15 +293,21 @@ private fun CampoPerfilItem(
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color.Transparent,
                     focusedBorderColor = Color(0xFF0077D7),
-                    disabledBorderColor = Color.Transparent,
                     unfocusedContainerColor = Color.White,
                     focusedContainerColor = Color.White,
-                    disabledContainerColor = Color(0xFFDCE3EC),
                     unfocusedTextColor = Color(0xFF0F172A),
-                    focusedTextColor = Color(0xFF0F172A),
-                    disabledTextColor = Color(0xFF64748B)
+                    focusedTextColor = Color(0xFF0F172A)
                 )
             )
+
+            if (mensagemErro != null) {
+                Text(
+                    text = mensagemErro,
+                    modifier = Modifier.padding(top = 4.dp),
+                    color = Color(0xFFB91C1C),
+                    fontSize = 13.sp
+                )
+            }
         }
     }
 }

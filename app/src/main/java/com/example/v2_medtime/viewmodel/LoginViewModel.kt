@@ -1,6 +1,8 @@
 package com.example.v2_medtime.viewmodel
 
 import android.app.Application
+import android.util.Base64
+import com.google.gson.JsonParser
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -25,6 +27,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var loginConcluido by mutableStateOf(false)
+        private set
+
+    var cuidadorAutenticado by mutableStateOf(false)
         private set
 
     var usuarioAutenticado by mutableStateOf<JsonObject?>(null)
@@ -64,6 +69,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
                         if (jwt.isNotBlank() && tokenManager.salvarToken(jwt)) {
                             usuarioAutenticado = usuario
+                            cuidadorAutenticado = obterIdPerfil(jwt) == 1
                             loginConcluido = true
                         } else {
                             erroLogin = "Não foi possível salvar sua sessão."
@@ -100,6 +106,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    private fun obterIdPerfil(jwt: String): Int? = runCatching {
+        val conteudo = Base64.decode(jwt.split('.')[1], Base64.URL_SAFE)
+        JsonParser.parseString(conteudo.toString(Charsets.UTF_8))
+            .asJsonObject.get("role")?.asInt
+    }.getOrNull()
 
     fun limparErro() {
         erroLogin = null
@@ -147,6 +159,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     usuarioAutenticado = dados
+                    cuidadorAutenticado = obterIdPerfil(jwt) == 1
                     loginConcluido = true
 
                 } else {
@@ -251,6 +264,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     usuarioAutenticado = dadosUsuario
+                    cuidadorAutenticado = obterIdPerfil(jwt) == 1
                     tokenGoogleCadastro = null
                     dadosGoogleCadastro = null
                     cadastroGoogleNecessario = false

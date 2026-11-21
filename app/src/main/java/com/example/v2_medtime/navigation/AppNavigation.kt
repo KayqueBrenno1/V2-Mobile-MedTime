@@ -26,13 +26,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.v2_medtime.data.remote.GoogleAuthManager
+import com.example.v2_medtime.screens.AlterarSenhaScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
+import com.example.v2_medtime.screens.CodigoGeradoScreen
 import com.example.v2_medtime.screens.DetalhesMedicamentoScreen
 import com.example.v2_medtime.screens.EditarPerfilScreen
 import com.example.v2_medtime.screens.EscolhaCadastroMedicamentoScreen
 import com.example.v2_medtime.screens.EstoqueMedicamentoScreen
+import com.example.v2_medtime.screens.GerarCodigoScreen
+import com.example.v2_medtime.screens.GerenciarPacientesScreen
+import com.example.v2_medtime.screens.InserirCodigoVinculoScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.MedicamentosIdentificadosScreen
+import com.example.v2_medtime.screens.PerfilScreen
+import com.example.v2_medtime.screens.VinculoRealizadoScreen
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
 import com.example.v2_medtime.screens.auth.CadastroRealizadoScreen
 import com.example.v2_medtime.screens.auth.ConfirmarEmailScreen
@@ -54,6 +61,8 @@ import com.example.v2_medtime.viewmodel.LoadingViewModel
 import com.example.v2_medtime.viewmodel.LoginViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 import com.example.v2_medtime.viewmodel.PerfilViewModel
+import com.example.v2_medtime.viewmodel.RecuperacaoSenhaViewModel
+import com.example.v2_medtime.viewmodel.VinculoViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -74,6 +83,8 @@ fun AppNavigation(
     val historicoViewModel: HistoricoViewModel = viewModel()
     val inicioViewModel: InicioViewModel = viewModel()
     val perfilViewModel: PerfilViewModel = viewModel()
+    val vinculoViewModel: VinculoViewModel = viewModel()
+    val recuperacaoSenhaViewModel: RecuperacaoSenhaViewModel = viewModel()
 
     val snackbarHostState = remember {
         SnackbarHostState()
@@ -82,8 +93,33 @@ fun AppNavigation(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    val mostrarMensagem: (String) -> Unit = { mensagem ->
+        coroutineScope.launch { snackbarHostState.showSnackbar(mensagem) }
+    }
+
     val googleAuthManager = remember(context) {
         GoogleAuthManager(context)
+    }
+
+    LaunchedEffect(perfilViewModel.erroPerfil) {
+        perfilViewModel.erroPerfil?.let { mensagem ->
+            snackbarHostState.showSnackbar(mensagem)
+            perfilViewModel.limparErroPerfil()
+        }
+    }
+
+    LaunchedEffect(medicamentoViewModel.erroMensagem) {
+        medicamentoViewModel.erroMensagem?.let { mensagem ->
+            snackbarHostState.showSnackbar(mensagem)
+            medicamentoViewModel.limparErro()
+        }
+    }
+
+    LaunchedEffect(inicioViewModel.erroInicio) {
+        inicioViewModel.erroInicio?.let { mensagem ->
+            snackbarHostState.showSnackbar(mensagem)
+            inicioViewModel.limparErro()
+        }
     }
 
     // AUTENTICAÇÃO GOOGLE
@@ -162,6 +198,9 @@ fun AppNavigation(
 
     LaunchedEffect(cadastroViewModel.cadastroConcluido) {
         if (cadastroViewModel.cadastroConcluido) {
+            cadastroViewModel.limparEstadoCadastro()
+            cadastroViewModel.limparCadastro()
+
             navController.navigate("cadastro_realizado") {
                 popUpTo("confirmar_email") {
                     inclusive = true
@@ -190,7 +229,19 @@ fun AppNavigation(
 
     LaunchedEffect(loginViewModel.loginConcluido) {
         if (loginViewModel.loginConcluido) {
-            navController.navigate("abas_principais") {
+            loginViewModel.usuarioAutenticado?.let(perfilViewModel::carregarPerfil)
+            vinculoViewModel.limparSessao()
+            val idPaciente = if (loginViewModel.cuidadorAutenticado) 0L else perfilViewModel.perfil.id
+            medicamentoViewModel.iniciarSessao(idPaciente)
+            inicioViewModel.iniciarSessao(idPaciente, perfilViewModel.perfil.nomeCompleto)
+            historicoViewModel.iniciarSessao(idPaciente)
+            val destino = if (loginViewModel.cuidadorAutenticado) {
+                "gerenciar_pacientes"
+            } else {
+                "abas_principais"
+            }
+
+            navController.navigate(destino) {
                 popUpTo(navController.graph.id) {
                     inclusive = true
                 }
@@ -218,6 +269,8 @@ fun AppNavigation(
     var emailRecuperacao by rememberSaveable {
         mutableStateOf("")
     }
+
+    var codigoRecuperacao by remember { mutableStateOf("") }
 
     // NAVEGAÇÃO PELA BARRA INFERIOR
     val navegarPelaNavbar: (String) -> Unit = { aba ->
@@ -362,6 +415,7 @@ fun AppNavigation(
                                 )
                             }
                         } else {
+                            cadastroViewModel.definirPerfil(perfil)
                             cadastroViewModel.definirDadosPessoais(dados)
 
                             navController.navigate("criar_senha")
@@ -456,10 +510,16 @@ fun AppNavigation(
                         navController.popBackStack()
                     },
                     onEnviarCodigo = { email ->
-                        emailRecuperacao = email
-
-                        navController.navigate(
-                            "verificar_codigo_senha"
+                        recuperacaoSenhaViewModel.enviarCodigo(
+                            email = email.trim(),
+                            onSucesso = {
+                                if (navController.currentDestination?.route == "recuperar_senha") {
+                                    emailRecuperacao = email.trim()
+                                    codigoRecuperacao = ""
+                                    navController.navigate("verificar_codigo_senha")
+                                }
+                            },
+                            onErro = mostrarMensagem
                         )
                     }
                 )
@@ -470,10 +530,15 @@ fun AppNavigation(
                     email = emailRecuperacao,
                     confirmarEmailViewModel = confirmarEmailViewModel,
                     onVerificar = { codigo ->
-                        // Futuramente, validar o código pela API.
+                        codigoRecuperacao = codigo
+                        navController.navigate("redefinir_senha") { launchSingleTop = true }
                     },
                     onReenviarCodigo = {
-                        // Futuramente, solicitar novo código pela API.
+                        recuperacaoSenhaViewModel.enviarCodigo(
+                            email = emailRecuperacao,
+                            onSucesso = { mostrarMensagem("Código reenviado.") },
+                            onErro = mostrarMensagem
+                        )
                     },
                     onVoltar = {
                         navController.popBackStack()
@@ -484,10 +549,29 @@ fun AppNavigation(
             composable("redefinir_senha") {
                 RedefinirSenhaScreen(
                     onVoltar = {
+                        confirmarEmailViewModel.permitirNovaTentativa()
                         navController.popBackStack()
                     },
                     onRedefinirSenha = { novaSenha ->
-                        // Futuramente, enviar a senha para a API.
+                        recuperacaoSenhaViewModel.redefinirSenha(
+                            email = emailRecuperacao,
+                            codigo = codigoRecuperacao,
+                            novaSenha = novaSenha,
+                            onSucesso = {
+                                if (navController.currentDestination?.route == "redefinir_senha") {
+                                    codigoRecuperacao = ""
+                                    emailRecuperacao = ""
+                                    navController.navigate("senha_redefinida") {
+                                        popUpTo("recuperar_senha") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            onErro = { mensagem ->
+                                confirmarEmailViewModel.permitirNovaTentativa()
+                                mostrarMensagem(mensagem)
+                            }
+                        )
                     }
                 )
             }
@@ -506,6 +590,30 @@ fun AppNavigation(
                 )
             }
 
+            composable("gerenciar_pacientes") {
+                LaunchedEffect(Unit) {
+                    vinculoViewModel.carregarPacientes(mostrarMensagem)
+                }
+
+                GerenciarPacientesScreen(
+                    navController = navController,
+                    pacientes = vinculoViewModel.pacientes,
+                    onAdicionarPaciente = {
+                        navController.navigate("gerar_codigo")
+                    },
+                )
+            }
+
+            composable("perfil_cuidador") {
+                PerfilScreen(
+                    navController = navController,
+                    viewModel = perfilViewModel,
+                    onNavigateTab = {},
+                    mostrarBarraInferior = false,
+                    perfilCuidador = true
+                )
+            }
+
             composable("abas_principais") {
                 AbasPrincipais(
                     navController = navController,
@@ -521,6 +629,34 @@ fun AppNavigation(
                     navController = navController,
                     viewModel = perfilViewModel
                 )
+            }
+
+            composable("inserir_codigo_vinculo") {
+                InserirCodigoVinculoScreen(
+                    navController = navController,
+                    onVerificarCodigo = { codigo ->
+                        vinculoViewModel.validarCodigo(
+                            codigo = codigo,
+                            onSucesso = {
+                                if (navController.currentDestination?.route == "inserir_codigo_vinculo") {
+                                    navController.navigate("vinculo_realizado") {
+                                        popUpTo("inserir_codigo_vinculo") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            onErro = mostrarMensagem
+                        )
+                    }
+                )
+            }
+
+            composable("vinculo_realizado") {
+                VinculoRealizadoScreen(navController = navController)
+            }
+
+            composable("alterar_senha") {
+                AlterarSenhaScreen(navController = navController)
             }
 
             composable("MedicamentoScreen") {
@@ -598,6 +734,35 @@ fun AppNavigation(
                     ocrTempId = ocrId
                 )
             }
+
+            composable("gerar_codigo") {
+                GerarCodigoScreen(
+                    navController = navController,
+                    onGerarCodigo = {
+                        vinculoViewModel.gerarCodigo(
+                            onSucesso = { codigo ->
+                                if (navController.currentDestination?.route == "gerar_codigo") {
+                                    navController.navigate("codigo_gerado/$codigo") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            onErro = mostrarMensagem
+                        )
+                    }
+                )
+            }
+
+            composable("codigo_gerado/{codigo}") { backStackEntry ->
+
+                val codigo = backStackEntry.arguments
+                    ?.getString("codigo").orEmpty()
+
+                CodigoGeradoScreen(
+                    navController = navController,
+                    codigo = codigo
+                )
+            }
         }
 
         // MENSAGENS E CARREGAMENTO
@@ -607,8 +772,8 @@ fun AppNavigation(
         )
 
         LoadingOverlay(
-            isLoading = loadingViewModel.isLoading,
-            mensagem = loadingViewModel.mensagem
+            isLoading = loadingViewModel.isLoading || vinculoViewModel.carregando || recuperacaoSenhaViewModel.carregando,
+            mensagem = if (vinculoViewModel.carregando || recuperacaoSenhaViewModel.carregando) "Aguarde..." else loadingViewModel.mensagem
         )
     }
 }

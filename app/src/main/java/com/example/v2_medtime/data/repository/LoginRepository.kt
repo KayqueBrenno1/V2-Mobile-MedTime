@@ -48,4 +48,26 @@ class LoginRepository {
 
         return RetrofitClient.api.cadastrarUsuarioGoogle(dados)
     }
+
+    suspend fun gerarCodigoRedefinicaoSenha(email: String): Response<JsonObject> {
+        val dados = JsonObject().apply {
+            addProperty("email", email)
+        }
+
+        return RetrofitClient.api.gerarCodigoRedefinicaoSenha(dados)
+    }
+
+    suspend fun redefinirSenha(
+        email: String,
+        codigo: String,
+        novaSenha: String
+    ): Response<JsonObject> {
+        val dados = JsonObject().apply {
+            addProperty("email", email)
+            addProperty("codigo", codigo)
+            addProperty("nova_senha", novaSenha)
+        }
+
+        return RetrofitClient.api.redefinirSenha(dados)
+    }
 }

@@ -270,7 +270,8 @@ fun EstoqueCircularCard(
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "${item.atual}/${item.total}${item.unidade}",
+                    text = if (item.total > 0) "${item.atual}/${item.total} ${item.unidade}"
+                else "${item.atual} ${item.unidade}",
                     color = Color(0xFF334155),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,

@@ -4,6 +4,15 @@ import com.example.v2_medtime.data.model.DiaCalendarioItem
 import com.example.v2_medtime.data.model.EstoqueResumoItem
 import com.example.v2_medtime.data.model.ProximoMedicamentoItem
 import com.example.v2_medtime.data.model.StatusDoseHoje
+import com.example.v2_medtime.data.remote.RetrofitClient
+import com.example.v2_medtime.data.remote.texto
+import com.google.gson.JsonObject
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 
 interface InicioRepository {
     suspend fun obterDiasCalendario(): Result<List<DiaCalendarioItem>>
@@ -12,77 +21,87 @@ interface InicioRepository {
     suspend fun registrarDoseTomada(doseId: Long): Result<Unit>
 }
 
-class FakeInicioRepository : InicioRepository {
+class ApiInicioRepository : InicioRepository {
 
-    private val diasMock = listOf(
-        DiaCalendarioItem("2026-11-10", "Seg", "10", isHoje = false),
-        DiaCalendarioItem("2026-11-11", "Ter", "11", isHoje = false),
-        DiaCalendarioItem("2026-11-12", "Hoje", "12", isHoje = true),
-        DiaCalendarioItem("2026-11-13", "Qui", "13", isHoje = false),
-        DiaCalendarioItem("2026-11-14", "Sex", "14", isHoje = false)
-    )
-
-    private val dosesPorDia = mutableMapOf(
-        "2026-11-12" to mutableListOf(
-            ProximoMedicamentoItem(
-                id = 101L,
-                medicamentoId = 1L,
-                nome = "Losartana",
-                concentracao = "50",
-                unidadeMedida = "mg",
-                dosagemTexto = "1 comprimido",
-                horario = "14:00",
-                status = StatusDoseHoje.ATRASADO
-            ),
-            ProximoMedicamentoItem(
-                id = 102L,
-                medicamentoId = 1L,
-                nome = "Losartana",
-                concentracao = "50",
-                unidadeMedida = "mg",
-                dosagemTexto = "1 comprimido",
-                horario = "17:00",
-                status = StatusDoseHoje.PENDENTE
-            )
-        )
-    )
-
-    private val estoquesMock = mutableListOf(
-        EstoqueResumoItem(medicamentoId = 1L, nome = "Losartana", atual = 30, total = 30, unidade = "CP"),
-        EstoqueResumoItem(medicamentoId = 2L, nome = "Metformina", atual = 15, total = 30, unidade = "")
-    )
+    var idUsuario: Long = 0L
+    private val api get() = RetrofitClient.api
+    private val dosesPorId = mutableMapOf<Long, Pair<Long, String>>()
+    private var proximoIdDose = 0L
 
     override suspend fun obterDiasCalendario(): Result<List<DiaCalendarioItem>> {
-        return Result.success(diasMock)
-    }
-
-    override suspend fun obterProximosMedicamentos(diaId: String): Result<List<ProximoMedicamentoItem>> {
-        val lista = dosesPorDia[diaId] ?: listOf(
-            ProximoMedicamentoItem(
-                id = 201L,
-                medicamentoId = 2L,
-                nome = "Metformina",
-                concentracao = "850",
-                unidadeMedida = "mg",
-                dosagemTexto = "1 comprimido",
-                horario = "08:00",
-                status = StatusDoseHoje.PENDENTE
+        val hoje = LocalDate.now()
+        val idioma = Locale.forLanguageTag("pt-BR")
+        return Result.success((-2L..2L).map { deslocamento ->
+            val dia = hoje.plusDays(deslocamento)
+            DiaCalendarioItem(
+                id = dia.toString(),
+                diaSemana = dia.dayOfWeek.getDisplayName(TextStyle.SHORT, idioma)
+                    .trimEnd('.').replaceFirstChar { it.uppercase() },
+                diaNumero = dia.dayOfMonth.toString(),
+                isHoje = dia == hoje
             )
-        )
-        return Result.success(lista.toList())
+        })
     }
 
-    override suspend fun obterResumoEstoque(): Result<List<EstoqueResumoItem>> {
-        return Result.success(estoquesMock.toList())
+    override suspend fun obterProximosMedicamentos(diaId: String) = requisitar {
+        val fuso = ZoneId.systemDefault()
+        val resposta = api.consultarAgenda(idUsuario, diaId, fuso.id)
+        val agenda = resposta.objetos("agenda", "Não foi possível carregar a agenda.")
+        dosesPorId.clear()
+
+        agenda.mapNotNull { dose ->
+            val idReceita = dose.texto("id_receita_medica")?.toLongOrNull() ?: return@mapNotNull null
+            val horario = dose.texto("horario_programado") ?: return@mapNotNull null
+            val instante = Instant.parse(horario)
+            val idDose = ++proximoIdDose
+            dosesPorId[idDose] = idReceita to horario
+
+            ProximoMedicamentoItem(
+                id = idDose,
+                medicamentoId = idReceita,
+                nome = dose.texto("nome_medicamento").orEmpty(),
+                concentracao = dose.texto("concentracao").orEmpty(),
+                unidadeMedida = dose.texto("unidade_concentracao").orEmpty(),
+                dosagemTexto = listOfNotNull(dose.texto("dosagem"), dose.texto("tipo_dosagem")).joinToString(" "),
+                horario = instante.atZone(fuso).format(DateTimeFormatter.ofPattern("HH:mm")),
+                status = when (dose.texto("status")) {
+                    "TOMADO" -> StatusDoseHoje.TOMADO
+                    "ATRASADO" -> StatusDoseHoje.ATRASADO
+                    else -> StatusDoseHoje.PENDENTE
+                }
+            )
+        }
     }
 
-    override suspend fun registrarDoseTomada(doseId: Long): Result<Unit> {
-        dosesPorDia.values.forEach { lista ->
-            val idx = lista.indexOfFirst { it.id == doseId }
-            if (idx != -1) {
-                lista[idx] = lista[idx].copy(status = StatusDoseHoje.TOMADO)
+    override suspend fun obterResumoEstoque() = requisitar {
+        val resposta = api.consultarEstoque(idUsuario)
+        if (resposta.code() == 404) {
+            emptyList()
+        } else {
+            val receitas = api.listarReceitas(idUsuario)
+            val idsReceitas = if (receitas.code() == 404) {
+                emptyMap()
+            } else {
+                receitas.objetos("receita_medica", "Não foi possível localizar as receitas.")
+                    .associate { it.texto("id_medicamento") to it.texto("id_receita_medica")?.toLongOrNull() }
+            }
+            resposta.objetos("estoques", "Não foi possível carregar o estoque.").mapNotNull { estoque ->
+                val idReceita = idsReceitas[estoque.texto("id_medicamento")] ?: return@mapNotNull null
+                val quantidade = estoque.texto("quantidade_em_estoque")?.toBigDecimalOrNull()?.toInt() ?: 0
+                EstoqueResumoItem(
+                    medicamentoId = idReceita,
+                    nome = estoque.texto("nome_medicamento").orEmpty(),
+                    atual = quantidade,
+                    total = 0,
+                    unidade = estoque.texto("tipo_dosagem").orEmpty()
+                )
             }
         }
-        return Result.success(Unit)
+    }
+
+    override suspend fun registrarDoseTomada(doseId: Long) = requisitar {
+        val (idReceita, horario) = dosesPorId[doseId] ?: error("Atualize a agenda antes de registrar a dose.")
+        val dados = JsonObject().apply { addProperty("horario_programado", horario) }
+        api.confirmarIngestao(idReceita, dados).exigirSucesso("Não foi possível registrar a dose.")
     }
 }

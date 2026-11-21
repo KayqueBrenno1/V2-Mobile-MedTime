@@ -125,26 +125,6 @@ fun EscolhaCadastroMedicamentoScreen(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                // Topo: Ícone pílula + MedTime
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Medication,
-                        contentDescription = null,
-                        tint = azulIcone,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "MedTime",
-                        color = Color(0xFF1E3A5F),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Cabeçalho: < Cadastrar Medicamento

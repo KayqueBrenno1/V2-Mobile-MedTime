@@ -231,10 +231,7 @@ fun MedicamentosIdentificadosScreen(
                                 "$totalSelecionados medicamento(s) cadastrado(s)!",
                                 Toast.LENGTH_SHORT
                             ).show()
-                            navController.navigate("agenda_medicamentos") {
-                                popUpTo("agenda_medicamentos") { inclusive = true }
-                                launchSingleTop = true
-                            }
+                            navController.popBackStack("abas_principais", inclusive = false)
                         }
                     },
                     enabled = totalSelecionados > 0 && !viewModel.isLoading && !viewModel.isEscaneandoOcr,

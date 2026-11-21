@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
@@ -23,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -39,7 +39,8 @@ fun InicioScreen(
     viewModel: InicioViewModel,
     onNavigateTab: (String) -> Unit,
     modifier: Modifier = Modifier,
-    mostrarBarraInferior: Boolean = true
+    mostrarBarraInferior: Boolean = true,
+    espacamentoInferiorConteudo: Dp = 0.dp
 ) {
     val context = LocalContext.current
 
@@ -64,18 +65,17 @@ fun InicioScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
+                    .padding(top = innerPadding.calculateTopPadding())
                     .padding(horizontal = 20.dp),
                 contentPadding = PaddingValues(
-                    top = 12.dp,
-                    bottom = innerPadding.calculateBottomPadding() + 16.dp
+                    top = 35.dp,
+                    bottom = maxOf(innerPadding.calculateBottomPadding(), espacamentoInferiorConteudo) + 16.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // 1. Cabeçalho: MedTime + Olá, Kayque 👋
                 item {
                     Column {
-                        Spacer(modifier = Modifier.height(35.dp))
                         Text(
                             text = "Olá, ${viewModel.nomeUsuario} \uD83D\uDC4B",
                             color = Color(0xFF0F172A),

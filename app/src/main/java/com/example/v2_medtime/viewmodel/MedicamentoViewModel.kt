@@ -8,7 +8,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.v2_medtime.data.model.MedicamentoRequest
-import com.example.v2_medtime.data.repository.FakeMedicamentoRepository
+import com.example.v2_medtime.data.repository.ApiMedicamentoRepository
+import kotlinx.coroutines.cancelChildren
 import com.example.v2_medtime.data.repository.MedicamentoRepository
 import kotlinx.coroutines.launch
 import java.io.File
@@ -34,7 +35,7 @@ data class ItemOcrIdentificado(
 )
 
 class MedicamentoViewModel(
-    private val repository: MedicamentoRepository = FakeMedicamentoRepository()
+    private val repository: MedicamentoRepository = ApiMedicamentoRepository()
 ) : ViewModel() {
 
     var ultimoMedicamento by mutableStateOf<MedicamentoCadastrado?>(null)
@@ -56,8 +57,21 @@ class MedicamentoViewModel(
 
     val remediosIdentificadosOcr = mutableStateListOf<ItemOcrIdentificado>()
 
-    init {
-        carregarMedicamentos()
+    fun iniciarSessao(idUsuario: Long) {
+        viewModelScope.coroutineContext.cancelChildren()
+        (repository as? ApiMedicamentoRepository)?.idUsuario = idUsuario
+        listaMedicamentos.clear()
+        remediosIdentificadosOcr.clear()
+        ultimoMedicamento = null
+        erroMensagem = null
+        isLoading = false
+        isEscaneandoOcr = false
+
+        if (idUsuario > 0L) carregarMedicamentos()
+    }
+
+    fun limparErro() {
+        erroMensagem = null
     }
 
     fun carregarMedicamentos() {
@@ -226,20 +240,29 @@ class MedicamentoViewModel(
 
     fun cadastrarSelecionadosOcr(onConcluido: () -> Unit) {
         val selecionados = remediosIdentificadosOcr.filter { it.selecionado }
-        if (selecionados.isEmpty()) return
+        if (selecionados.isEmpty() || isLoading) return
 
         viewModelScope.launch {
             isLoading = true
-            selecionados.forEach { item ->
-                repository.cadastrarMedicamento(item.dados, null, null)
-                    .onSuccess { novoItem ->
-                        ultimoMedicamento = novoItem
-                        listaMedicamentos.add(0, novoItem)
+            erroMensagem = null
+            try {
+                for (item in selecionados) {
+                    val resultado = repository.cadastrarMedicamento(item.dados, null, null)
+                    val novoItem = resultado.getOrNull()
+                    if (novoItem == null) {
+                        erroMensagem = resultado.exceptionOrNull()?.message
+                            ?: "Não foi possível cadastrar um medicamento da receita."
+                        return@launch
                     }
+
+                    ultimoMedicamento = novoItem
+                    listaMedicamentos.add(0, novoItem)
+                    remediosIdentificadosOcr.remove(item)
+                }
+                onConcluido()
+            } finally {
+                isLoading = false
             }
-            remediosIdentificadosOcr.clear()
-            isLoading = false
-            onConcluido()
         }
     }
 }
