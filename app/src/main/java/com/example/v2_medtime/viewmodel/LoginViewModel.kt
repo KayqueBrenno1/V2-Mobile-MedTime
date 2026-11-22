@@ -12,7 +12,9 @@ import com.example.v2_medtime.data.local.TokenManager
 import com.example.v2_medtime.data.model.DadosPessoais
 import com.example.v2_medtime.data.repository.LoginRepository
 import com.google.gson.JsonObject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -67,7 +69,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     ) {
                         val jwt = usuario.get("jwt").asString
 
-                        if (jwt.isNotBlank() && tokenManager.salvarToken(jwt)) {
+                        if (jwt.isNotBlank() && tokenManager.salvarSessao(jwt, usuario)) {
                             usuarioAutenticado = usuario
                             cuidadorAutenticado = obterIdPerfil(jwt) == 1
                             loginConcluido = true
@@ -113,6 +115,61 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             .asJsonObject.get("role")?.asInt
     }.getOrNull()
 
+    suspend fun restaurarSessao(): Boolean {
+        carregando = true
+        return try {
+            val sessao = tokenManager.obterSessao()
+            if (sessao == null || tokenExpirado(sessao.token)) {
+                tokenManager.removerToken()
+                return false
+            }
+
+            cuidadorAutenticado = obterIdPerfil(sessao.token) == 1
+            usuarioAutenticado = JsonObject().apply {
+                addProperty("id", sessao.idUsuario)
+                addProperty("nome", sessao.nome)
+                addProperty("email", sessao.email)
+            }
+
+            try {
+                val resposta = repository.validarSessao(sessao.idUsuario, cuidadorAutenticado)
+                if (resposta.code() == 401) {
+                    tokenManager.removerToken()
+                    limparEstadoSessao()
+                    false
+                } else {
+                    loginConcluido = true
+                    true
+                }
+            } catch (cancelamento: CancellationException) {
+                throw cancelamento
+            } catch (_: Exception) {
+                // Sem resposta do servidor, mantém a sessão ainda não expirada.
+                loginConcluido = true
+                true
+            }
+        } finally {
+            carregando = false
+        }
+    }
+
+    fun limparEstadoSessao() {
+        usuarioAutenticado = null
+        cuidadorAutenticado = false
+        loginConcluido = false
+        cadastroGoogleNecessario = false
+        tokenGoogleCadastro = null
+        dadosGoogleCadastro = null
+    }
+
+    private fun tokenExpirado(jwt: String): Boolean = runCatching {
+        val parte = jwt.split('.')[1]
+        val conteudo = Base64.decode(parte, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        val claims = JsonParser.parseString(String(conteudo, Charsets.UTF_8)).asJsonObject
+        val expiracao = claims.get("exp")?.takeUnless { it.isJsonNull }?.asLong
+        expiracao != null && Instant.now().epochSecond >= expiracao
+    }.getOrDefault(true)
+
     fun limparErro() {
         erroLogin = null
     }
@@ -153,7 +210,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         return@launch
                     }
 
-                    if (!tokenManager.salvarToken(jwt)) {
+                    if (!tokenManager.salvarSessao(jwt, dados)) {
                         erroLogin = "Não foi possível salvar sua sessão."
                         return@launch
                     }
@@ -258,7 +315,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         return@launch
                     }
 
-                    if (!tokenManager.salvarToken(jwt)) {
+                    if (!tokenManager.salvarSessao(jwt, dadosUsuario)) {
                         erroLogin = "Não foi possível salvar sua sessão."
                         return@launch
                     }

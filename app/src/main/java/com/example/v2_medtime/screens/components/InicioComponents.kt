@@ -27,6 +27,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +46,10 @@ import com.example.v2_medtime.data.model.DiaCalendarioItem
 import com.example.v2_medtime.data.model.EstoqueResumoItem
 import com.example.v2_medtime.data.model.ProximoMedicamentoItem
 import com.example.v2_medtime.data.model.StatusDoseHoje
+import kotlinx.coroutines.delay
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun DiaCalendarioChip(
@@ -99,6 +108,27 @@ fun ProximoMedicamentoCard(
     onAbrirDetalhes: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var agora by remember(item.id) { mutableStateOf(Instant.now()) }
+    val horarioLiberacaoInstante = item.horarioProgramado.minusSeconds(30 * 60)
+    LaunchedEffect(item.id, horarioLiberacaoInstante) {
+        while (true) {
+            val instanteAtual = Instant.now()
+            if (!instanteAtual.isBefore(horarioLiberacaoInstante)) {
+                agora = instanteAtual
+                break
+            }
+            delay(
+                (horarioLiberacaoInstante.toEpochMilli() - instanteAtual.toEpochMilli())
+                    .coerceAtLeast(1L)
+            )
+        }
+    }
+    val podeTomar = item.podeTomar(agora)
+    val horarioLiberacao = item.horarioProgramado
+        .minusSeconds(30 * 60)
+        .atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("HH:mm"))
+
     val (badgeFundo, badgeTexto) = when (item.status) {
         StatusDoseHoje.ATRASADO -> Color(0xFFE55353) to Color.White
         StatusDoseHoje.PENDENTE -> Color(0xFFFACC15) to Color(0xFF1E293B)
@@ -205,14 +235,25 @@ fun ProximoMedicamentoCard(
                             .fillMaxWidth()
                             .height(48.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22A088))
+                        enabled = podeTomar,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF22A088),
+                            disabledContainerColor = Color(0xFFE2E8F0)
+                        )
                     ) {
                         Text(
                             text = "TOMAR",
-                            color = Color.White,
+                            color = if (podeTomar) Color.White else Color(0xFF64748B),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.8.sp
+                        )
+                    }
+                    if (!podeTomar) {
+                        Text(
+                            text = "Disponível a partir das $horarioLiberacao",
+                            color = Color(0xFF64748B),
+                            fontSize = 13.sp
                         )
                     }
                 }
@@ -227,8 +268,13 @@ fun EstoqueCircularCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val progresso = if (item.total > 0) (item.atual.toFloat() / item.total.toFloat()).coerceIn(0f, 1f) else 0f
-    val corArco = if (progresso > 0.6f) Color(0xFF1E88E5) else Color(0xFFEAB308)
+    val progresso = if (item.total > 0) {
+        (item.atual.toFloat() / item.total.toFloat()).coerceIn(0f, 1f)
+    } else {
+        1f
+    }
+    val estoqueBaixo = item.atual <= 5
+    val corArco = if (estoqueBaixo) Color(0xFFEF4444) else Color(0xFF1E88E5)
 
     Surface(
         modifier = modifier

@@ -119,6 +119,10 @@ class InicioViewModel(
                 if (cardExpandidoId == doseId) {
                     cardExpandidoId = null
                 }
+                repository.obterResumoEstoque().onSuccess { estoques ->
+                    resumoEstoque.clear()
+                    resumoEstoque.addAll(estoques)
+                }
                 onSucesso()
             }.onFailure {
                 erroInicio = it.message ?: "Não foi possível registrar a dose."

@@ -1,5 +1,8 @@
 package com.example.v2_medtime.data.model
 
+import java.time.Duration
+import java.time.Instant
+
 data class DiaCalendarioItem(
     val id: String,
     val diaSemana: String,
@@ -21,8 +24,12 @@ data class ProximoMedicamentoItem(
     val unidadeMedida: String,
     val dosagemTexto: String,
     val horario: String,
+    val horarioProgramado: Instant,
     val status: StatusDoseHoje
-)
+) {
+    fun podeTomar(agora: Instant = Instant.now()): Boolean =
+        !agora.isBefore(horarioProgramado.minus(Duration.ofMinutes(30)))
+}
 
 data class EstoqueResumoItem(
     val medicamentoId: Long,

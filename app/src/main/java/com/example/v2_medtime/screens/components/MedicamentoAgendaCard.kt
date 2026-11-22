@@ -70,7 +70,7 @@ fun MedicamentoAgendaCard(
     val dados = item.dados
     val estiloCor = paletaIcones[colorIndex % paletaIcones.size]
 
-    val titulo = "${dados.nome} ${dados.concentracao} ${dados.unidadeMedida}".trim()
+    val titulo = dados.nome
     val subtitulo = "${dados.dose} ${dados.tipoMedicamento.lowercase()}"
     val horariosTexto = gerarHorariosDoDia(dados)
 
@@ -96,9 +96,12 @@ fun MedicamentoAgendaCard(
                     .background(estiloCor.fundo),
                 contentAlignment = Alignment.Center
             ) {
-                if (item.imagemUri != null) {
+                val modeloFoto = item.imagemUrlRemota
+                    ?: dados.imagemRemota.takeIf { it.isNotBlank() }
+                    ?: item.imagemUri
+                if (modeloFoto != null) {
                     AsyncImage(
-                        model = item.imagemUri,
+                        model = modeloFoto,
                         contentDescription = dados.nome,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop

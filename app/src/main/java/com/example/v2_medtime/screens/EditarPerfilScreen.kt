@@ -145,7 +145,7 @@ fun EditarPerfilScreen(
 
                 if (fotoSelecionada != null) {
                     Text(
-                        text = "A foto fica visível nesta sessão.",
+                        text = "A foto será salva no seu perfil.",
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                         color = Color(0xFF64748B),
                         fontSize = 13.sp

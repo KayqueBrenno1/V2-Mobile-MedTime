@@ -91,7 +91,6 @@ fun validarCampos(estado: MedicamentoRequest, cadastroNovo: Boolean = true): Set
     if (estado.unidadeMedida.isBlank()) erros.add("unidadeMedida")
     if (estado.dose.isBlank()) erros.add("dose")
     if (estado.unidadeDose.isBlank()) erros.add("unidadeDose")
-    if (cadastroNovo && estado.imagemRemota.isBlank()) erros.add("imagemRemota")
     if (estado.tipoMedicamento.isBlank()) erros.add("tipoMedicamento")
     if (cadastroNovo || estado.frequencia.isNotBlank() ||
         estado.intervaloDosagem.isNotBlank() || estado.horarioInicial.isNotBlank()
@@ -118,15 +117,15 @@ fun MedicamentoScreen(
     val context = LocalContext.current
 
     // Verifica se a tela foi aberta no modo Edição ou Novo Cadastro
-    val itemParaEditar = remember(medicamentoId) {
-        medicamentoId?.let { viewModel.buscarPorId(it) }
-    }
-    val itemOcrParaEditar = remember(ocrTempId) {
-        ocrTempId?.let { viewModel.buscarItemOcrPorId(it) }
-    }
+    val itemParaEditar = medicamentoId?.let { viewModel.buscarPorId(it) }
+    val itemOcrParaEditar = ocrTempId?.let { viewModel.buscarItemOcrPorId(it) }
     val isEdicao = itemParaEditar != null || itemOcrParaEditar != null
 
-    var fotoSelecionada by rememberSaveable { mutableStateOf<Uri?>(itemParaEditar?.imagemUri) }
+    var fotoSelecionada by rememberSaveable(
+        medicamentoId,
+        ocrTempId,
+        itemParaEditar?.dados
+    ) { mutableStateOf<Uri?>(itemParaEditar?.imagemUri) }
     var mostrarSeletorFoto by remember { mutableStateOf(false) }
     // Seletor de Hora
     var mostrarSeletorHora by remember { mutableStateOf(false) }
@@ -137,7 +136,12 @@ fun MedicamentoScreen(
     )
 
     // Estado do Formulário (pré-preenchido se for edição)
-    var estadoFormulario by remember {
+    var estadoFormulario by remember(
+        medicamentoId,
+        ocrTempId,
+        itemParaEditar?.dados,
+        itemOcrParaEditar?.dados
+    ) {
         mutableStateOf(
             itemParaEditar?.dados
                 ?: itemOcrParaEditar?.dados
@@ -227,7 +231,10 @@ fun MedicamentoScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         color = FundoTela,
-                        border = BorderStroke(1.dp, BordaInput)
+                        border = BorderStroke(
+                            1.dp,
+                            if (camposComErro.contains("imagem")) VermelhoObrigatorio else BordaInput
+                        )
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -273,29 +280,25 @@ fun MedicamentoScreen(
                     SeletorFoto(
                         aberto = mostrarSeletorFoto,
                         onFechar = { mostrarSeletorFoto = false },
-                        onFotoSelecionada = { fotoSelecionada = it }
+                        onFotoSelecionada = {
+                            fotoSelecionada = it
+                            camposComErro = camposComErro - "imagem"
+                        }
                     )
 
-                    if (itemParaEditar == null || fotoSelecionada != null) {
+                    if (camposComErro.contains("imagem")) {
                         Text(
-                            text = "A foto selecionada é uma prévia local. O servidor exige um link para salvar a imagem.",
+                            text = "Selecione uma foto para cadastrar o medicamento.",
+                            color = VermelhoObrigatorio,
+                            fontSize = 13.sp
+                        )
+                    } else if (fotoSelecionada != null) {
+                        Text(
+                            text = "A foto será enviada ao salvar o medicamento.",
                             color = TextoSecundario,
                             fontSize = 13.sp
                         )
                     }
-
-                    DesignTextField(
-                        label = "Link da imagem",
-                        required = itemParaEditar == null,
-                        placeholder = "https://...",
-                        value = estadoFormulario.imagemRemota,
-                        keyboardType = KeyboardType.Uri,
-                        isError = camposComErro.contains("imagemRemota"),
-                        onValueChange = {
-                            estadoFormulario = estadoFormulario.copy(imagemRemota = it)
-                            camposComErro = camposComErro - "imagemRemota"
-                        }
-                    )
 
                     // 1. Medicamento *
                     DesignTextField(
@@ -303,7 +306,6 @@ fun MedicamentoScreen(
                         required = true,
                         placeholder = "Ex.: Losartana",
                         value = estadoFormulario.nome,
-                        enabled = itemParaEditar == null,
                         isError = camposComErro.contains("nome"),
                         trailingIcon = {
                             Icon(
@@ -571,13 +573,20 @@ fun MedicamentoScreen(
             // Botão Finalizar (Cadastro ou Edição via Repository)
             Button(
                 onClick = {
-                    val errosEncontrados = validarCampos(estadoFormulario, cadastroNovo = itemParaEditar == null)
+                    val errosEncontrados = validarCampos(
+                        estadoFormulario,
+                        cadastroNovo = itemParaEditar == null
+                    ).toMutableSet().apply {
+                        if (itemParaEditar == null && itemOcrParaEditar == null && fotoSelecionada == null) {
+                            add("imagem")
+                        }
+                    }
                     camposComErro = errosEncontrados
 
                     if (errosEncontrados.isEmpty()) {
-                        if (itemOcrParaEditar != null && ocrTempId != null) {
+                        if (itemOcrParaEditar != null) {
                             // 1. Edição de item extraído pelo OCR (antes de salvar na agenda)
-                            viewModel.atualizarItemOcr(ocrTempId, estadoFormulario)
+                            viewModel.atualizarItemOcr(itemOcrParaEditar.idTemporario, estadoFormulario)
                             Toast.makeText(context, "Item atualizado na lista!", Toast.LENGTH_SHORT).show()
                             navController.popBackStack()
                         } else if (itemParaEditar != null && medicamentoId != null) {

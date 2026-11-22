@@ -1,13 +1,9 @@
 package com.example.v2_medtime.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,25 +17,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -57,7 +45,10 @@ fun EstoqueMedicamentoScreen(
     viewModel: MedicamentoViewModel,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+    LaunchedEffect(medicamentoId) {
+        viewModel.recarregarMedicamento(medicamentoId)
+    }
+
     val item = viewModel.buscarPorId(medicamentoId)
 
     if (item == null) {
@@ -66,9 +57,7 @@ fun EstoqueMedicamentoScreen(
     }
 
     val dados = item.dados
-    val quantidadeInicial = dados.quantidadeTotal.toIntOrNull() ?: 0
-
-    var quantidadeAtual by remember(quantidadeInicial) { mutableIntStateOf(quantidadeInicial) }
+    val quantidadeAtual = dados.quantidadeTotal.toIntOrNull() ?: 0
 
     val azulPrincipal = Color(0xFF1592D0)
     val textoEscuro = Color(0xFF0F172A)
@@ -137,10 +126,19 @@ fun EstoqueMedicamentoScreen(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         Text(
-                            text = "${dados.nome} ${dados.concentracao} ${dados.unidadeMedida}".trim(),
+                            text = dados.nome,
                             color = textoEscuro,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Concentração: ${dados.concentracao} ${dados.unidadeMedida}".trim(),
+                            color = textoSecundario,
+                            fontSize = 14.sp,
                             textAlign = TextAlign.Center
                         )
 
@@ -155,84 +153,21 @@ fun EstoqueMedicamentoScreen(
 
                         Spacer(modifier = Modifier.height(28.dp))
 
-                        // Seletor - [ 20 ] +
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(24.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFF1F5F9))
-                                    .clickable {
-                                        if (quantidadeAtual > 0) quantidadeAtual--
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Remove,
-                                    contentDescription = "Diminuir",
-                                    tint = textoEscuro,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "$quantidadeAtual",
-                                    color = textoEscuro,
-                                    fontSize = 42.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                                Text(
-                                    text = "${dados.tipoMedicamento.lowercase()}(s)",
-                                    color = textoSecundario,
-                                    fontSize = 14.sp
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFE5F3FD))
-                                    .clickable { quantidadeAtual++ },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Aumentar",
-                                    tint = azulPrincipal,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = quantidadeAtual.toString(),
+                                color = if (estoqueBaixo) Color(0xFFEF4444) else textoEscuro,
+                                fontSize = 42.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                text = "${dados.tipoMedicamento.lowercase()}(s) disponíveis",
+                                color = textoSecundario,
+                                fontSize = 14.sp
+                            )
                         }
                     }
                 }
-            }
-
-            // Botão Salvar Estoque
-            Button(
-                onClick = {
-                    viewModel.atualizarEstoque(medicamentoId, quantidadeAtual) {
-                        Toast.makeText(context, "Estoque atualizado!", Toast.LENGTH_SHORT).show()
-                        navController.popBackStack()
-                    }
-                },
-                enabled = !viewModel.isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = azulPrincipal)
-            ) {
-                Text(
-                    text = "Salvar Estoque",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))

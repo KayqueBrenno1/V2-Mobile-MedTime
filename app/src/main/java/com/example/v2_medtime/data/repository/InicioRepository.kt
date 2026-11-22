@@ -64,6 +64,7 @@ class ApiInicioRepository : InicioRepository {
                 unidadeMedida = dose.texto("unidade_concentracao").orEmpty(),
                 dosagemTexto = listOfNotNull(dose.texto("dosagem"), dose.texto("tipo_dosagem")).joinToString(" "),
                 horario = instante.atZone(fuso).format(DateTimeFormatter.ofPattern("HH:mm")),
+                horarioProgramado = instante,
                 status = when (dose.texto("status")) {
                     "TOMADO" -> StatusDoseHoje.TOMADO
                     "ATRASADO" -> StatusDoseHoje.ATRASADO
@@ -101,6 +102,10 @@ class ApiInicioRepository : InicioRepository {
 
     override suspend fun registrarDoseTomada(doseId: Long) = requisitar {
         val (idReceita, horario) = dosesPorId[doseId] ?: error("Atualize a agenda antes de registrar a dose.")
+        val horarioProgramado = Instant.parse(horario)
+        check(!Instant.now().isBefore(horarioProgramado.minusSeconds(30 * 60))) {
+            "A dose só pode ser registrada a partir de 30 minutos antes do horário programado."
+        }
         val dados = JsonObject().apply { addProperty("horario_programado", horario) }
         api.confirmarIngestao(idReceita, dados).exigirSucesso("Não foi possível registrar a dose.")
     }

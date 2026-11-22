@@ -42,6 +42,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -56,10 +57,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation(libs.androidx.navigation.compose)
-    implementation("androidx.navigation:navigation-compose:2.9.7")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation(libs.retrofit)

@@ -22,6 +22,11 @@ class AuthInterceptor(context: Context) : Interceptor {
             }
             .build()
 
-        return chain.proceed(request)
+        val response = chain.proceed(request)
+        if (response.code == 401 && !token.isNullOrBlank()) {
+            tokenManager.removerToken()
+            AuthSessionEvents.notifySessionEnded()
+        }
+        return response
     }
 }

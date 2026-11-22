@@ -18,6 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.navigation.NavController
@@ -30,6 +33,7 @@ import com.example.v2_medtime.viewmodel.HistoricoViewModel
 import com.example.v2_medtime.viewmodel.InicioViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 import com.example.v2_medtime.viewmodel.PerfilViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -55,10 +59,18 @@ fun AbasPrincipais(
 
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(pagerState.settledPage) {
-        when (pagerState.settledPage) {
-            0 -> inicioViewModel.carregarDadosIniciais()
-            2 -> historicoViewModel.carregarHistorico()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(pagerState.settledPage, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                when (pagerState.settledPage) {
+                    0 -> inicioViewModel.carregarDadosIniciais()
+                    1 -> medicamentoViewModel.carregarMedicamentos()
+                    2 -> historicoViewModel.carregarHistorico()
+                }
+                delay(60_000)
+            }
         }
     }
 

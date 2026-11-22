@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.v2_medtime.data.local.TokenManager
 import com.example.v2_medtime.data.model.PerfilUsuario
+import com.example.v2_medtime.data.remote.AuthSessionEvents
 import com.example.v2_medtime.data.remote.confirmouSucesso
 import com.example.v2_medtime.data.remote.mensagemDeErro
 import com.example.v2_medtime.data.remote.texto
@@ -21,7 +22,7 @@ import java.util.Locale
 
 class PerfilViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repositorio = PerfilRepository()
+    private val repositorio = PerfilRepository(application.contentResolver, application.cacheDir)
     private val gerenciadorToken = TokenManager(application)
 
     var perfil by mutableStateOf(PerfilUsuario())
@@ -80,12 +81,16 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
             erroPerfil = null
 
             try {
+                val fotoUriNova = fotoUriLocal?.takeUnless { it == perfil.fotoUriLocal }
+                val fotoUrl = fotoUriNova?.let { repositorio.enviarFoto(it) }
+                    ?: perfil.fotoUrlRemota
                 val atualizado = perfil.copy(
                     nomeCompleto = nomeCompleto.trim(),
                     email = email.trim(),
                     dataNascimento = dataNascimento,
                     cpf = cpf,
-                    fotoUriLocal = fotoUriLocal
+                    fotoUriLocal = fotoUriLocal,
+                    fotoUrlRemota = fotoUrl
                 )
                 val resposta = repositorio.atualizarPerfil(atualizado, dataApi)
                 if (resposta.confirmouSucesso()) {
@@ -112,6 +117,7 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
         if (gerenciadorToken.removerToken()) {
             perfil = PerfilUsuario()
             erroPerfil = null
+            AuthSessionEvents.notifySessionEnded()
             onLogoutConcluido()
         } else {
             erroPerfil = "Não foi possível encerrar a sessão."

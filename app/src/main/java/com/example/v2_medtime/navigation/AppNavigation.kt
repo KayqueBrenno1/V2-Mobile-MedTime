@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.v2_medtime.data.remote.AuthSessionEvents
 import com.example.v2_medtime.data.remote.GoogleAuthManager
 import com.example.v2_medtime.screens.AlterarSenhaScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
@@ -63,7 +64,6 @@ import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 import com.example.v2_medtime.viewmodel.PerfilViewModel
 import com.example.v2_medtime.viewmodel.RecuperacaoSenhaViewModel
 import com.example.v2_medtime.viewmodel.VinculoViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -99,6 +99,25 @@ fun AppNavigation(
 
     val googleAuthManager = remember(context) {
         GoogleAuthManager(context)
+    }
+
+    LaunchedEffect(Unit) {
+        AuthSessionEvents.sessionEnded.collect {
+            loginViewModel.limparEstadoSessao()
+            loginViewModel.limparErro()
+            perfilViewModel.carregarPerfil(com.google.gson.JsonObject())
+            vinculoViewModel.limparSessao()
+            inicioViewModel.iniciarSessao(0L, "")
+            medicamentoViewModel.iniciarSessao(0L)
+            historicoViewModel.iniciarSessao(0L)
+
+            if (navController.currentDestination?.route != "boas_vindas") {
+                navController.navigate("boas_vindas") {
+                    popUpTo(navController.graph.id) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        }
     }
 
     LaunchedEffect(perfilViewModel.erroPerfil) {
@@ -334,14 +353,12 @@ fun AppNavigation(
         ) {
             composable("splash") {
                 LaunchedEffect(Unit) {
-                    delay(1800)
-
-                    navController.navigate("boas_vindas") {
-                        popUpTo("splash") {
-                            inclusive = true
+                    val sessaoRestaurada = loginViewModel.restaurarSessao()
+                    if (!sessaoRestaurada) {
+                        navController.navigate("boas_vindas") {
+                            popUpTo("splash") { inclusive = true }
+                            launchSingleTop = true
                         }
-
-                        launchSingleTop = true
                     }
                 }
 

@@ -63,6 +63,11 @@ fun DetalhesMedicamentoScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
+    androidx.compose.runtime.LaunchedEffect(medicamentoId) {
+        viewModel.recarregarMedicamento(medicamentoId)
+    }
+
     val item = viewModel.buscarPorId(medicamentoId)
 
     if (item == null) {
@@ -150,7 +155,9 @@ fun DetalhesMedicamentoScreen(
                             .background(Color(0xFFE5F3FD)),
                         contentAlignment = Alignment.Center
                     ) {
-                        val modeloFoto: Any? = item.imagemUri ?: item.imagemUrlRemota
+                        val modeloFoto: Any? = item.imagemUrlRemota
+                            ?: dados.imagemRemota.takeIf { it.isNotBlank() }
+                            ?: item.imagemUri
                         if (modeloFoto != null) {
                             AsyncImage(
                                 model = modeloFoto,
@@ -172,7 +179,7 @@ fun DetalhesMedicamentoScreen(
 
                     Column {
                         Text(
-                            text = "${dados.nome} ${dados.concentracao} ${dados.unidadeMedida}".trim(),
+                            text = dados.nome,
                             color = Color(0xFF0F172A),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
@@ -194,6 +201,12 @@ fun DetalhesMedicamentoScreen(
                     icon = Icons.Outlined.Medication,
                     titulo = "Dosagem",
                     valor = "${dados.dose} ${dados.tipoMedicamento.lowercase()}"
+                )
+
+                DetalheInfoCard(
+                    icon = Icons.Outlined.Medication,
+                    titulo = "Concentração",
+                    valor = "${dados.concentracao} ${dados.unidadeMedida}".trim()
                 )
 
                 DetalheInfoCard(

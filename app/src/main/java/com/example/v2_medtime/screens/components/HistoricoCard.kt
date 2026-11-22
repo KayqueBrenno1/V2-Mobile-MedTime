@@ -92,7 +92,7 @@ fun HistoricoCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${item.nomeMedicamento} ${item.concentracao} ${item.unidadeMedida}".trim(),
+                        text = item.nomeMedicamento,
                         color = Color(0xFF0F172A),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp

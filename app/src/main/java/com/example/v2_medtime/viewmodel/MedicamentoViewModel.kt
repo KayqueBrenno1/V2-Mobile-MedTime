@@ -1,11 +1,12 @@
 package com.example.v2_medtime.viewmodel
 
+import android.app.Application
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.data.repository.ApiMedicamentoRepository
@@ -35,8 +36,14 @@ data class ItemOcrIdentificado(
 )
 
 class MedicamentoViewModel(
-    private val repository: MedicamentoRepository = ApiMedicamentoRepository()
-) : ViewModel() {
+    application: Application,
+    private val repository: MedicamentoRepository
+) : AndroidViewModel(application) {
+
+    constructor(application: Application) : this(
+        application,
+        ApiMedicamentoRepository(application.contentResolver, application.cacheDir)
+    )
 
     var ultimoMedicamento by mutableStateOf<MedicamentoCadastrado?>(null)
         private set
@@ -45,6 +52,8 @@ class MedicamentoViewModel(
 
     var isLoading by mutableStateOf(false)
         private set
+
+    private var carregandoLista = false
 
     var erroMensagem by mutableStateOf<String?>(null)
         private set
@@ -75,23 +84,36 @@ class MedicamentoViewModel(
     }
 
     fun carregarMedicamentos() {
+        if (carregandoLista) return
+
         viewModelScope.launch {
+            if (carregandoLista) return@launch
+            carregandoLista = true
             isLoading = true
             erroMensagem = null
-            repository.listarMedicamentos()
-                .onSuccess { itens ->
-                    listaMedicamentos.clear()
-                    listaMedicamentos.addAll(itens)
-                }
-                .onFailure { erro ->
-                    erroMensagem = erro.message ?: "Erro ao carregar medicamentos"
-                }
-            isLoading = false
+            try {
+                repository.listarMedicamentos()
+                    .onSuccess { itens ->
+                        listaMedicamentos.clear()
+                        listaMedicamentos.addAll(itens)
+                    }
+                    .onFailure { erro ->
+                        erroMensagem = erro.message ?: "Erro ao carregar medicamentos"
+                    }
+            } finally {
+                carregandoLista = false
+                isLoading = false
+            }
         }
     }
 
     fun buscarPorId(id: Long): MedicamentoCadastrado? {
         return listaMedicamentos.find { it.id == id }
+    }
+
+    fun recarregarMedicamento(id: Long) {
+        if (id <= 0L) return
+        carregarMedicamentos()
     }
 
     fun registrarMedicamento(
@@ -126,7 +148,9 @@ class MedicamentoViewModel(
         viewModelScope.launch {
             isLoading = true
             erroMensagem = null
-            repository.atualizarMedicamento(id, request, imagemFile, imagemUri)
+            val imagemAtual = listaMedicamentos.firstOrNull { it.id == id }?.imagemUri
+            val novaImagemUri = imagemUri?.takeUnless { it == imagemAtual }
+            repository.atualizarMedicamento(id, request, imagemFile, novaImagemUri)
                 .onSuccess { itemAtualizado ->
                     val index = listaMedicamentos.indexOfFirst { it.id == id }
                     if (index != -1) {
