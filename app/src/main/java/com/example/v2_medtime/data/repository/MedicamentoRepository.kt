@@ -1,6 +1,7 @@
 package com.example.v2_medtime.data.repository
 
 import android.content.ContentResolver
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.example.v2_medtime.data.model.MedicamentoRequest
@@ -10,19 +11,21 @@ import com.example.v2_medtime.data.remote.mensagemDeErro
 import com.example.v2_medtime.data.remote.texto
 import com.example.v2_medtime.viewmodel.MedicamentoCadastrado
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.Response
 import java.io.File
+import java.text.Normalizer
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.time.LocalTime
 import java.time.ZoneId
-import java.text.Normalizer
+import java.time.format.DateTimeFormatter
 
 interface MedicamentoRepository {
     suspend fun listarMedicamentos(): Result<List<MedicamentoCadastrado>>
@@ -44,15 +47,82 @@ interface MedicamentoRepository {
 
 class ApiMedicamentoRepository(
     contentResolver: ContentResolver,
-    cacheDir: File
+    private val cacheDir: File
 ) : MedicamentoRepository {
 
     var idUsuario: Long = 0L
     private val api get() = RetrofitClient.api
     private val cloudinaryRepository = CloudinaryRepository(contentResolver, cacheDir)
 
+    private data class ProgramacaoSalva(
+        val frequencia: String = "",
+        val intervalo: String = "",
+        val horarioInicial: String = ""
+    )
+
+    private fun arquivoCacheProgramacoes(): File =
+        File(cacheDir, "medtime_programacoes_receitas.json")
+
+    private fun lerCacheProgramacoes(): MutableMap<Long, ProgramacaoSalva> = runCatching {
+        val arquivo = arquivoCacheProgramacoes()
+        if (!arquivo.exists()) return@runCatching mutableMapOf()
+        val root = JsonParser.parseString(arquivo.readText()).asJsonObject
+        val mapa = mutableMapOf<Long, ProgramacaoSalva>()
+        for ((chave, valor) in root.entrySet()) {
+            val id = chave.toLongOrNull() ?: continue
+            val obj = valor.asJsonObject
+            mapa[id] = ProgramacaoSalva(
+                frequencia = obj.texto("frequencia").orEmpty(),
+                intervalo = obj.texto("intervalo").orEmpty(),
+                horarioInicial = obj.texto("horarioInicial").orEmpty()
+            )
+        }
+        mapa
+    }.getOrDefault(mutableMapOf())
+
+    private fun salvarProgramacaoCache(idReceita: Long, request: MedicamentoRequest) {
+        if (idReceita <= 0L) return
+        if (request.frequencia.isBlank() && request.intervaloDosagem.isBlank() && request.horarioInicial.isBlank()) return
+        runCatching {
+            val mapa = lerCacheProgramacoes()
+            val anterior = mapa[idReceita]
+            mapa[idReceita] = ProgramacaoSalva(
+                frequencia = request.frequencia.ifBlank { anterior?.frequencia.orEmpty() },
+                intervalo = request.intervaloDosagem.ifBlank { anterior?.intervalo.orEmpty() },
+                horarioInicial = request.horarioInicial.ifBlank { anterior?.horarioInicial.orEmpty() }
+            )
+            val root = JsonObject()
+            mapa.forEach { (id, prog) ->
+                root.add(id.toString(), JsonObject().apply {
+                    addProperty("frequencia", prog.frequencia)
+                    addProperty("intervalo", prog.intervalo)
+                    addProperty("horarioInicial", prog.horarioInicial)
+                })
+            }
+            arquivoCacheProgramacoes().writeText(root.toString())
+        }
+    }
+
+    private fun removerProgramacaoCache(idReceita: Long) {
+        runCatching {
+            val mapa = lerCacheProgramacoes()
+            if (mapa.remove(idReceita) != null) {
+                val root = JsonObject()
+                mapa.forEach { (id, prog) ->
+                    root.add(id.toString(), JsonObject().apply {
+                        addProperty("frequencia", prog.frequencia)
+                        addProperty("intervalo", prog.intervalo)
+                        addProperty("horarioInicial", prog.horarioInicial)
+                    })
+                }
+                arquivoCacheProgramacoes().writeText(root.toString())
+            }
+        }
+    }
+
     override suspend fun listarMedicamentos() = requisitar {
-        val resposta = api.listarReceitas(usuarioDaSessao())
+        val usuario = usuarioDaSessao()
+        val resposta = api.listarReceitas(usuario)
         if (resposta.code() == 404) {
             emptyList()
         } else {
@@ -67,6 +137,9 @@ class ApiMedicamentoRepository(
                 api.listarTiposIntervalo().objetos("tipoIntervalo", "Não foi possível carregar os intervalos.")
             }.getOrDefault(emptyList())
 
+            val programacoesAgenda = carregarProgramacoesDaAgenda(usuario)
+            val cacheLocal = lerCacheProgramacoes()
+
             receitas.map { dados ->
                 val medicamento = dados.objeto("medicamento")
                 val receita = dados.objeto("receita_medica")
@@ -76,9 +149,14 @@ class ApiMedicamentoRepository(
                     "programacao",
                     "programacoes_medicamento"
                 )
-                val idReceita = dados.valor("id_receita_medica", "id")
+                val idReceitaStr = dados.valor("id_receita_medica", "id")
                     ?: receita.valor("id_receita_medica", "id")
                     ?: error("A API retornou uma receita sem identificador.")
+                val idReceita = idReceitaStr.toLongOrNull()
+                    ?: error("A API retornou um identificador de receita inválido.")
+
+                val progAgenda = programacoesAgenda[idReceita]
+                val progCache = cacheLocal[idReceita]
 
                 val unidadeEmbalagem = dados.valor("sigla_embalagem", "unidade_medida_embalagem")
                     ?: medicamento.valor("sigla_embalagem", "unidade_medida_embalagem")
@@ -92,58 +170,121 @@ class ApiMedicamentoRepository(
                 val tipoDosagem = dados.valor("tipo_dosagem")
                     ?: medicamento.valor("tipo_dosagem")
                     ?: tipos.valorPorId(medicamento.valor("id_tipo_dosagem"), "tipo_dosagem")
-                val tipoIntervalo = dados.valor("tipo_intervalo", "intervalo_dosagem")
+                val tipoIntervalo = (dados.valor("tipo_intervalo", "intervalo_dosagem")
                     ?: programacao.valor("tipo_intervalo", "intervalo_dosagem")
-                    ?: intervalos.valorPorId(programacao.valor("id_tipo_intervalo"), "tipo_intervalo")
+                    ?: intervalos.valorPorId(programacao.valor("id_tipo_intervalo"), "tipo_intervalo"))
+                    .ifBlank { progAgenda?.intervalo.orEmpty() }
+                    .ifBlank { progCache?.intervalo.orEmpty() }
+
+                val frequencia = (dados.valor("frequencia")
+                    ?: programacao.valor("frequencia")
+                    ?: receita.valor("frequencia")
+                    ?: "")
+                    .normalizarNumero()
+                    .ifBlank { progAgenda?.frequencia.orEmpty() }
+                    .ifBlank { progCache?.frequencia.orEmpty() }
+
+                val horarioInicial = listOf<String?>(
+                    dados.valor(
+                        "data_hora_inicio",
+                        "horario_inicial",
+                        "horario_programado",
+                        "hora_inicio",
+                        "horario_inicio"
+                    ),
+                    programacao.valor(
+                        "data_hora_inicio",
+                        "horario_inicial",
+                        "horario_programado",
+                        "hora_inicio",
+                        "horario_inicio"
+                    )
+                ).firstNotNullOfOrNull { it?.let(::extrairHorario) }
+                    .orEmpty()
+                    .ifBlank { progAgenda?.horarioInicial.orEmpty() }
+                    .ifBlank { progCache?.horarioInicial.orEmpty() }
+
                 val imagem = dados.valor("imagem")
                     ?: medicamento.valor("imagem")
                     ?: ""
 
+                val requestMontado = MedicamentoRequest(
+                    nome = dados.valor("nome_medicamento", "nome")
+                        ?: medicamento.valor("nome")
+                        ?: "",
+                    concentracao = (dados.valor("concentracao")
+                        ?: medicamento.valor("concentracao")
+                        ?: "").normalizarNumero(),
+                    unidadeMedida = unidadeEmbalagem,
+                    dose = (dados.valor("dosagem", "dose")
+                        ?: receita.valor("dosagem", "dose")
+                        ?: "").normalizarNumero(),
+                    unidadeDose = unidadeDose,
+                    tipoMedicamento = tipoDosagem.replaceFirstChar { it.uppercase() },
+                    quantidadeTotal = (dados.valor("quantidade_em_estoque", "quantidade")
+                        ?: estoque.valor("quantidade_em_estoque", "quantidade")
+                        ?: "").normalizarNumero(),
+                    descricao = dados.valor("descricao") ?: receita.valor("descricao") ?: "",
+                    frequencia = frequencia,
+                    intervaloDosagem = tipoIntervalo,
+                    horarioInicial = horarioInicial,
+                    imagemRemota = imagem
+                )
+
+                salvarProgramacaoCache(idReceita, requestMontado)
+
                 MedicamentoCadastrado(
-                    id = idReceita.toLongOrNull()
-                        ?: error("A API retornou um identificador de receita inválido."),
-                    dados = MedicamentoRequest(
-                        nome = dados.valor("nome_medicamento", "nome")
-                            ?: medicamento.valor("nome")
-                            ?: "",
-                        concentracao = (dados.valor("concentracao")
-                            ?: medicamento.valor("concentracao")
-                            ?: "").normalizarNumero(),
-                        unidadeMedida = unidadeEmbalagem,
-                        dose = (dados.valor("dosagem", "dose")
-                            ?: receita.valor("dosagem", "dose")
-                            ?: "").normalizarNumero(),
-                        unidadeDose = unidadeDose,
-                        tipoMedicamento = tipoDosagem.replaceFirstChar { it.uppercase() },
-                        quantidadeTotal = (dados.valor("quantidade_em_estoque", "quantidade")
-                            ?: estoque.valor("quantidade_em_estoque", "quantidade")
-                            ?: "").normalizarNumero(),
-                        descricao = dados.valor("descricao") ?: receita.valor("descricao") ?: "",
-                        frequencia = (dados.valor("frequencia")
-                            ?: programacao.valor("frequencia")
-                            ?: receita.valor("frequencia")
-                            ?: "").normalizarNumero(),
-                        intervaloDosagem = tipoIntervalo,
-                        horarioInicial = listOf<String?>(
-                            dados.valor(
-                                "data_hora_inicio",
-                                "horario_inicial",
-                                "horario_programado",
-                                "hora_inicio",
-                                "horario_inicio"
-                            ),
-                            programacao.valor(
-                                "data_hora_inicio",
-                                "horario_inicial",
-                                "horario_programado",
-                                "hora_inicio",
-                                "horario_inicio"
-                            )
-                        ).firstNotNullOfOrNull { it?.let(::extrairHorario) }.orEmpty(),
-                        imagemRemota = imagem
-                    ),
+                    id = idReceita,
+                    dados = requestMontado,
                     imagemUrlRemota = imagem.ifBlank { null }
                 )
+            }
+        }
+    }
+
+    private suspend fun carregarProgramacoesDaAgenda(idUsuario: Long): Map<Long, ProgramacaoSalva> {
+        val fuso = ZoneId.systemDefault()
+        val hoje = LocalDate.now(fuso)
+        val formatador = DateTimeFormatter.ofPattern("HH:mm")
+
+        val itensPorReceita = mutableMapOf<Long, MutableList<JsonObject>>()
+        listOf(hoje, hoje.plusDays(1)).forEach { dia ->
+            val resp = runCatching { api.consultarAgenda(idUsuario, dia.toString(), fuso.id) }.getOrNull()
+            if (resp != null && resp.code() != 404 && resp.confirmouSucesso()) {
+                val agenda = resp.body()?.getAsJsonObject("response")?.getAsJsonArray("agenda")
+                agenda?.forEach { elem ->
+                    val obj = elem.asJsonObject
+                    val idRec = obj.texto("id_receita_medica")?.toLongOrNull() ?: return@forEach
+                    itensPorReceita.getOrPut(idRec) { mutableListOf() }.add(obj)
+                }
+            }
+        }
+
+        return itensPorReceita.mapValues { (_, doses) ->
+            val ordenadas = doses.mapNotNull { d ->
+                val iso = d.texto("horario_programado") ?: return@mapNotNull null
+                val inst = runCatching { Instant.parse(iso) }.getOrNull() ?: return@mapNotNull null
+                inst to d
+            }.sortedBy { it.first }
+
+            val primeira = ordenadas.firstOrNull()
+            val horarioInicial = primeira?.first?.atZone(fuso)?.format(formatador).orEmpty()
+            val freqApi = primeira?.second?.texto("frequencia")?.normalizarNumero().orEmpty()
+            val intervaloApi = primeira?.second?.texto("tipo_intervalo").orEmpty()
+
+            if (freqApi.isNotBlank() && intervaloApi.isNotBlank()) {
+                ProgramacaoSalva(freqApi, intervaloApi, horarioInicial)
+            } else if (ordenadas.size >= 2) {
+                val diffMin = Duration.between(ordenadas[0].first, ordenadas[1].first).toMinutes()
+                when {
+                    diffMin > 0 && diffMin % (24 * 60) == 0L ->
+                        ProgramacaoSalva((diffMin / (24 * 60)).toString(), "Dia", horarioInicial)
+                    diffMin > 0 && diffMin % 60 == 0L ->
+                        ProgramacaoSalva((diffMin / 60).toString(), "Hora", horarioInicial)
+                    else -> ProgramacaoSalva("", "", horarioInicial)
+                }
+            } else {
+                ProgramacaoSalva("", "", horarioInicial)
             }
         }
     }
@@ -156,46 +297,21 @@ class ApiMedicamentoRepository(
         try {
             val usuario = usuarioDaSessao()
 
-            Log.e("CADASTRO_MED", "1 - Iniciando cadastro")
-            Log.e("CADASTRO_MED", "2 - Preparando imagem")
-
             val imagemUrl = imagemFile?.let {
-                Log.e("CADASTRO_MED", "3 - Enviando imagemFile")
                 cloudinaryRepository.uploadImage(it).getOrThrow()
             } ?: imagemUriLocal?.let {
-                Log.e("CADASTRO_MED", "3 - Enviando imagemUriLocal")
                 cloudinaryRepository.uploadImage(it).getOrThrow()
             } ?: request.imagemRemota
 
-            Log.e("CADASTRO_MED", "4 - Imagem processada: $imagemUrl")
-
             val requestComImagem = request.copy(imagemRemota = imagemUrl)
-
-            Log.e("CADASTRO_MED", "5 - Preparando dados")
-
             val dados = prepararMedicamento(requestComImagem, criando = true)
-
-            Log.e("CADASTRO_MED", "6 - JSON enviado: $dados")
-            Log.e("CADASTRO_MED", "7 - Enviando para API")
-            Log.e("CADASTRO_MED", "Usuário: $usuario")
-
             val resposta = api.cadastrarMedicamento(usuario, dados)
 
-            Log.e("CADASTRO_MED", "8 - HTTP: ${resposta.code()}")
-            Log.e("CADASTRO_MED", "9 - Sucesso HTTP: ${resposta.isSuccessful}")
-
             val corpoErro = resposta.errorBody()?.string()
-            Log.e("CADASTRO_MED", "10 - ERROR BODY: $corpoErro")
-
             val corpo = resposta.body()
 
-            Log.e("CADASTRO_MED", "11 - BODY: $corpo")
-
             if (!resposta.isSuccessful) {
-                error(
-                    "Erro HTTP ${resposta.code()}: " +
-                            (corpoErro ?: resposta.message())
-                )
+                error("Erro HTTP ${resposta.code()}: " + (corpoErro ?: resposta.message()))
             }
 
             val dadosResposta = requireNotNull(corpo) {
@@ -203,13 +319,13 @@ class ApiMedicamentoRepository(
             }.getAsJsonObject("response")
                 ?: error("A API não retornou o objeto response.")
 
-            Log.e("CADASTRO_MED", "12 - Resposta processada")
-
             val id = requireNotNull(
                 dadosResposta.texto("id_receita_medica")?.toLongOrNull()
             ) {
                 "O servidor não retornou o identificador da receita."
             }
+
+            salvarProgramacaoCache(id, requestComImagem)
 
             MedicamentoCadastrado(
                 id = id,
@@ -217,7 +333,6 @@ class ApiMedicamentoRepository(
                 imagemUri = imagemUriLocal,
                 imagemUrlRemota = requestComImagem.imagemRemota
             )
-
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -239,6 +354,7 @@ class ApiMedicamentoRepository(
         val requestComImagem = request.copy(imagemRemota = imagemUrl)
         val dados = prepararMedicamento(requestComImagem, criando = false)
         api.editarMedicamento(id, usuario, dados).exigirSucesso("Não foi possível atualizar o medicamento.")
+        salvarProgramacaoCache(id, requestComImagem)
         MedicamentoCadastrado(
             id = id,
             dados = requestComImagem,
@@ -263,6 +379,7 @@ class ApiMedicamentoRepository(
         if (resposta.code() != 204) {
             resposta.exigirSucesso("Não foi possível excluir o medicamento.")
         }
+        removerProgramacaoCache(id)
     }
 
     override suspend fun escanearReceitaOcr(imagemReceita: File) = requisitar {

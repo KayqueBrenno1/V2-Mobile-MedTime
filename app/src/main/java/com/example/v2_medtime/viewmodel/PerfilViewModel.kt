@@ -95,6 +95,13 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
                 val resposta = repositorio.atualizarPerfil(atualizado, dataApi)
                 if (resposta.confirmouSucesso()) {
                     perfil = atualizado
+                    gerenciadorToken.atualizarUsuarioSessao(
+                        nome = atualizado.nomeCompleto,
+                        email = atualizado.email,
+                        cpf = atualizado.cpf,
+                        dataNascimento = dataApi,
+                        foto = atualizado.fotoUrlRemota
+                    )
                     onSucesso()
                 } else {
                     erroPerfil = resposta.mensagemDeErro("Não foi possível salvar o perfil.")

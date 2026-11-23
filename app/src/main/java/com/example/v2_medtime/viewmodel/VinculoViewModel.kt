@@ -1,11 +1,13 @@
 package com.example.v2_medtime.viewmodel
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.v2_medtime.data.repository.VinculoRepository
+import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
 import com.example.v2_medtime.screens.PacienteVinculado
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -14,7 +16,7 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import retrofit2.Response
 
-class VinculoViewModel : ViewModel() {
+class VinculoViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repositorio = VinculoRepository()
 
@@ -47,6 +49,7 @@ class VinculoViewModel : ViewModel() {
         executar(onErro) {
             val resposta = repositorio.validarCodigo(codigo)
             if (confirmouSucesso(resposta)) {
+                VerificacaoPeriodicaWorker.executarAgora(getApplication())
                 onSucesso()
             } else {
                 onErro(mensagemErro(resposta, "Não foi possível validar o código de vínculo."))

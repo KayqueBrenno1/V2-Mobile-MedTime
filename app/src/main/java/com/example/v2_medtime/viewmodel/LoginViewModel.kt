@@ -129,6 +129,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 addProperty("id", sessao.idUsuario)
                 addProperty("nome", sessao.nome)
                 addProperty("email", sessao.email)
+                addProperty("cpf", sessao.cpf)
+                addProperty("data_nascimento", sessao.dataNascimento)
+                sessao.foto?.let { addProperty("foto", it) }
             }
 
             try {

@@ -1,0 +1,343 @@
+package com.example.v2_medtime.screens
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Medication
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.example.v2_medtime.notifications.NotificacaoHelper
+import com.example.v2_medtime.viewmodel.AlarmeViewModel
+
+private val FundoAlarme = Color(0xFFF7FAFC)
+private val AzulAlarme = Color(0xFF1485BD)
+private val VerdeAlarme = Color(0xFF009973)
+
+@Composable
+fun AlarmeMedicamentoScreen(
+    navController: NavController,
+    viewModel: AlarmeViewModel,
+    onDoseConfirmada: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val alarme = viewModel.alarmeAtual
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(FundoAlarme)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(
+            modifier = Modifier.padding(top = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "MEDTIME",
+                color = AzulAlarme,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontStyle = FontStyle.Italic,
+                letterSpacing = 1.5.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(188.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFF1F4F8)),
+                contentAlignment = Alignment.Center
+            ) {
+                val imagem = alarme?.imagemUrl
+                if (!imagem.isNullOrBlank()) {
+                    AsyncImage(
+                        model = imagem,
+                        contentDescription = alarme.nomeMedicamento,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Medication,
+                        contentDescription = alarme?.nomeMedicamento,
+                        tint = AzulAlarme,
+                        modifier = Modifier.size(76.dp)
+                    )
+                }
+            }
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            RelogioDigitalPixelado(
+                horario = alarme?.horarioFormatado?.ifBlank { "00:00" } ?: "00:00",
+                cor = VerdeAlarme
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Column(
+                modifier = Modifier.width(IntrinsicSize.Max),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = alarme?.nomeMedicamento.orEmpty(),
+                    color = AzulAlarme,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.5.dp)
+                        .background(AzulAlarme)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            Text(
+                text = alarme?.dosagemTexto.orEmpty(),
+                color = VerdeAlarme,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Button(
+            onClick = {
+                viewModel.confirmarTomei { notificacaoId ->
+                    if (notificacaoId != 0) {
+                        NotificacaoHelper.cancelar(context, notificacaoId)
+                    }
+                    onDoseConfirmada()
+                    if (!navController.popBackStack()) {
+                        navController.navigate("abas_principais") {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            },
+            enabled = !viewModel.carregando && alarme != null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+                .height(68.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AzulAlarme,
+                contentColor = Color.White,
+                disabledContainerColor = AzulAlarme.copy(alpha = 0.7f)
+            )
+        ) {
+            if (viewModel.carregando) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(28.dp)
+                )
+            } else {
+                Text(
+                    text = "TOMEI",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RelogioDigitalPixelado(
+    horario: String,
+    cor: Color,
+    tamanhoPixel: Dp = 10.dp
+) {
+    val caracteres = horario.filter { it.isDigit() || it == ':' }.ifEmpty { "00:00" }
+    val espacamentoCaractere = 2
+    val colunasTotais = caracteres.sumOf { larguraGlifo(it) } +
+            (caracteres.length - 1).coerceAtLeast(0) * espacamentoCaractere
+    val linhasTotais = 6
+
+    Canvas(
+        modifier = Modifier
+            .width(tamanhoPixel * colunasTotais)
+            .height(tamanhoPixel * linhasTotais)
+    ) {
+        val px = size.width / colunasTotais
+        val py = size.height / linhasTotais
+        var colunaAtual = 0
+
+        caracteres.forEach { char ->
+            val matriz = obterMatrizPixel(char)
+            for (linha in matriz.indices) {
+                for (coluna in matriz[linha].indices) {
+                    if (matriz[linha][coluna] == 1) {
+                        drawRect(
+                            color = cor,
+                            topLeft = Offset(
+                                x = (colunaAtual + coluna) * px,
+                                y = linha * py
+                            ),
+                            size = Size(px + 0.5f, py + 0.5f)
+                        )
+                    }
+                }
+            }
+            colunaAtual += larguraGlifo(char) + espacamentoCaractere
+        }
+    }
+}
+
+private fun larguraGlifo(char: Char): Int = if (char == ':') 1 else 4
+
+private fun obterMatrizPixel(char: Char): Array<IntArray> = when (char) {
+    '0' -> arrayOf(
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1)
+    )
+    '1' -> arrayOf(
+        intArrayOf(0, 1, 1, 0),
+        intArrayOf(1, 1, 1, 0),
+        intArrayOf(0, 1, 1, 0),
+        intArrayOf(0, 1, 1, 0),
+        intArrayOf(0, 1, 1, 0),
+        intArrayOf(1, 1, 1, 1)
+    )
+    '2' -> arrayOf(
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(0, 0, 1, 1),
+        intArrayOf(0, 1, 1, 0),
+        intArrayOf(1, 1, 0, 0),
+        intArrayOf(1, 1, 1, 1)
+    )
+    '3' -> arrayOf(
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(0, 0, 0, 1),
+        intArrayOf(0, 1, 1, 1),
+        intArrayOf(0, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1)
+    )
+    '4' -> arrayOf(
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(0, 0, 0, 1),
+        intArrayOf(0, 0, 0, 1),
+        intArrayOf(0, 0, 0, 1)
+    )
+    '5' -> arrayOf(
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 0),
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(0, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1)
+    )
+    '6' -> arrayOf(
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 0),
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1)
+    )
+    '7' -> arrayOf(
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(0, 0, 1, 1),
+        intArrayOf(0, 1, 1, 0),
+        intArrayOf(0, 1, 1, 0),
+        intArrayOf(0, 1, 1, 0)
+    )
+    '8' -> arrayOf(
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1)
+    )
+    '9' -> arrayOf(
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1),
+        intArrayOf(0, 0, 0, 1),
+        intArrayOf(1, 0, 0, 1),
+        intArrayOf(1, 1, 1, 1)
+    )
+    ':' -> arrayOf(
+        intArrayOf(0),
+        intArrayOf(1),
+        intArrayOf(0),
+        intArrayOf(0),
+        intArrayOf(1),
+        intArrayOf(0)
+    )
+    else -> arrayOf(
+        intArrayOf(0, 0, 0, 0),
+        intArrayOf(0, 0, 0, 0),
+        intArrayOf(0, 0, 0, 0),
+        intArrayOf(0, 0, 0, 0),
+        intArrayOf(0, 0, 0, 0),
+        intArrayOf(0, 0, 0, 0)
+    )
+}

@@ -10,8 +10,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.data.repository.ApiMedicamentoRepository
-import kotlinx.coroutines.cancelChildren
 import com.example.v2_medtime.data.repository.MedicamentoRepository
+import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -129,6 +130,7 @@ class MedicamentoViewModel(
                 .onSuccess { novoItem ->
                     ultimoMedicamento = novoItem
                     listaMedicamentos.add(0, novoItem)
+                    VerificacaoPeriodicaWorker.executarAgora(getApplication())
                     onSucesso()
                 }
                 .onFailure { erro ->
@@ -156,6 +158,7 @@ class MedicamentoViewModel(
                     if (index != -1) {
                         listaMedicamentos[index] = itemAtualizado
                     }
+                    VerificacaoPeriodicaWorker.executarAgora(getApplication())
                     onSucesso()
                 }
                 .onFailure { erro ->
@@ -184,6 +187,7 @@ class MedicamentoViewModel(
                             )
                         )
                     }
+                    VerificacaoPeriodicaWorker.executarAgora(getApplication())
                     onSucesso()
                 }
                 .onFailure { erro ->
@@ -203,6 +207,7 @@ class MedicamentoViewModel(
             repository.excluirMedicamento(id)
                 .onSuccess {
                     listaMedicamentos.removeAll { it.id == id }
+                    VerificacaoPeriodicaWorker.executarAgora(getApplication())
                     onSucesso()
                 }
                 .onFailure { erro ->
@@ -283,6 +288,7 @@ class MedicamentoViewModel(
                     listaMedicamentos.add(0, novoItem)
                     remediosIdentificadosOcr.remove(item)
                 }
+                VerificacaoPeriodicaWorker.executarAgora(getApplication())
                 onConcluido()
             } finally {
                 isLoading = false

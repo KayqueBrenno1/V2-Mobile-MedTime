@@ -1,6 +1,8 @@
 package com.example.v2_medtime.data.local
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import android.util.Base64
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -9,14 +11,15 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 
 data class SessaoLocal(
     val token: String,
     val idUsuario: Long,
     val nome: String,
-    val email: String
+    val email: String,
+    val cpf: String = "",
+    val dataNascimento: String = "",
+    val foto: String? = null
 )
 
 class TokenManager(context: Context) {
@@ -68,8 +71,13 @@ class TokenManager(context: Context) {
         return try {
             val dadosSessao = JsonObject().apply {
                 addProperty("id", obterIdUsuario(usuario, token))
-                addProperty("nome", usuario.get("nome")?.takeUnless { it.isJsonNull }?.asString.orEmpty())
-                addProperty("email", usuario.get("email")?.takeUnless { it.isJsonNull }?.asString.orEmpty())
+                addProperty("nome", usuario.textoOuVazio("nome"))
+                addProperty("email", usuario.textoOuVazio("email"))
+                addProperty("cpf", usuario.textoOuVazio("cpf"))
+                addProperty("data_nascimento", usuario.textoOuVazio("data_nascimento"))
+                usuario.textoOuVazio("foto").takeIf { it.isNotBlank() }?.let {
+                    addProperty("foto", it)
+                }
             }
             val (tokenCifrado, tokenIv) = criptografar(token)
             val (usuarioCifrado, usuarioIv) = criptografar(dadosSessao.toString())
@@ -83,6 +91,26 @@ class TokenManager(context: Context) {
         } catch (_: Exception) {
             false
         }
+    }
+
+    fun atualizarUsuarioSessao(
+        nome: String,
+        email: String,
+        cpf: String,
+        dataNascimento: String,
+        foto: String?
+    ): Boolean {
+        val token = obterToken() ?: return false
+        val sessaoAtual = obterSessao() ?: return false
+        val dadosSessao = JsonObject().apply {
+            addProperty("id", sessaoAtual.idUsuario)
+            addProperty("nome", nome)
+            addProperty("email", email)
+            addProperty("cpf", cpf)
+            addProperty("data_nascimento", dataNascimento)
+            foto?.takeIf { it.isNotBlank() }?.let { addProperty("foto", it) }
+        }
+        return salvarSessao(token, dadosSessao)
     }
 
     fun obterToken(): String? {
@@ -106,8 +134,11 @@ class TokenManager(context: Context) {
             SessaoLocal(
                 token = token,
                 idUsuario = id,
-                nome = usuario.get("nome")?.takeUnless { it.isJsonNull }?.asString.orEmpty(),
-                email = usuario.get("email")?.takeUnless { it.isJsonNull }?.asString.orEmpty()
+                nome = usuario.textoOuVazio("nome"),
+                email = usuario.textoOuVazio("email"),
+                cpf = usuario.textoOuVazio("cpf"),
+                dataNascimento = usuario.textoOuVazio("data_nascimento"),
+                foto = usuario.textoOuVazio("foto").ifBlank { null }
             )
         } catch (_: Exception) {
             null
@@ -123,12 +154,15 @@ class TokenManager(context: Context) {
             .commit()
     }
 
+    private fun JsonObject.textoOuVazio(chave: String): String =
+        get(chave)?.takeUnless { it.isJsonNull }?.asString.orEmpty()
+
     private fun criptografar(valor: String): Pair<String, String> {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, obterChave())
         val cifrado = cipher.doFinal(valor.toByteArray(Charsets.UTF_8))
         return Base64.encodeToString(cifrado, Base64.NO_WRAP) to
-            Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
+                Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
     }
 
     private fun descriptografar(conteudo: String, iv: String): String {

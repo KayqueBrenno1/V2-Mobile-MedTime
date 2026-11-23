@@ -67,6 +67,9 @@ interface MedTimeApi {
     @GET("v1/healthSystem/medtime/vinculo_paciente/meus_pacientes")
     suspend fun listarPacientesVinculados(): Response<JsonObject>
 
+    @GET("v1/healthSystem/medtime/vinculo_paciente/meu_cuidador")
+    suspend fun buscarMeuCuidador(): Response<JsonObject>
+
     @GET("v1/healthSystem/medtime/tipo_dosagem")
     suspend fun listarTiposDosagem(): Response<JsonObject>
 

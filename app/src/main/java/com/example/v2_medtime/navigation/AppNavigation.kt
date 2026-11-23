@@ -25,8 +25,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.v2_medtime.data.local.NotificacaoStorage
+import com.example.v2_medtime.data.model.AlarmeMedicamento
 import com.example.v2_medtime.data.remote.AuthSessionEvents
 import com.example.v2_medtime.data.remote.GoogleAuthManager
+import com.example.v2_medtime.notifications.AgendadorAlarmesMedicamento
+import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
 import com.example.v2_medtime.screens.AlterarSenhaScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
 import com.example.v2_medtime.screens.CodigoGeradoScreen
@@ -54,6 +58,7 @@ import com.example.v2_medtime.screens.auth.SenhaRedefinidaScreen
 import com.example.v2_medtime.screens.auth.SplashScreen
 import com.example.v2_medtime.screens.auth.VerificarCodigoSenhaScreen
 import com.example.v2_medtime.screens.components.LoadingOverlay
+import com.example.v2_medtime.viewmodel.AlarmeViewModel
 import com.example.v2_medtime.viewmodel.CadastroViewModel
 import com.example.v2_medtime.viewmodel.ConfirmarEmailViewModel
 import com.example.v2_medtime.viewmodel.HistoricoViewModel
@@ -68,9 +73,12 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavigation(
-    modifier: Modifier
+    modifier: Modifier,
+    alarmeInicial: AlarmeMedicamento? = null,
+    onAlarmeConsumido: () -> Unit = {}
 ) {
     val navController = rememberNavController()
+    val alarmeViewModel: AlarmeViewModel = viewModel()
 
     // VIEWMODELS DE AUTENTICAÇÃO
     val cadastroViewModel: CadastroViewModel = viewModel()
@@ -101,8 +109,28 @@ fun AppNavigation(
         GoogleAuthManager(context)
     }
 
+    LaunchedEffect(alarmeViewModel.erroAlarme) {
+        alarmeViewModel.erroAlarme?.let { mensagem ->
+            snackbarHostState.showSnackbar(mensagem)
+            alarmeViewModel.limparErro()
+        }
+    }
+
+    LaunchedEffect(alarmeInicial) {
+        if (alarmeInicial != null) {
+            alarmeViewModel.definirAlarme(alarmeInicial)
+            onAlarmeConsumido()
+            navController.navigate("alarme_medicamento") {
+                launchSingleTop = true
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         AuthSessionEvents.sessionEnded.collect {
+            AgendadorAlarmesMedicamento.cancelarTodosAlarmes(context)
+            VerificacaoPeriodicaWorker.cancelar(context)
+            NotificacaoStorage(context).limparTudo()
             loginViewModel.limparEstadoSessao()
             loginViewModel.limparErro()
             perfilViewModel.carregarPerfil(com.google.gson.JsonObject())
@@ -268,7 +296,16 @@ fun AppNavigation(
                 launchSingleTop = true
             }
 
+            if (alarmeViewModel.alarmeAtual != null) {
+                navController.navigate("alarme_medicamento") {
+                    launchSingleTop = true
+                }
+            }
+
             loginViewModel.limparEstadoLogin()
+
+            VerificacaoPeriodicaWorker.agendarPeriodico(context)
+            VerificacaoPeriodicaWorker.executarAgora(context)
         }
     }
 
@@ -778,6 +815,17 @@ fun AppNavigation(
                 CodigoGeradoScreen(
                     navController = navController,
                     codigo = codigo
+                )
+            }
+
+            composable("alarme_medicamento") {
+                com.example.v2_medtime.screens.AlarmeMedicamentoScreen(
+                    navController = navController,
+                    viewModel = alarmeViewModel,
+                    onDoseConfirmada = {
+                        inicioViewModel.carregarDadosIniciais()
+                        VerificacaoPeriodicaWorker.executarAgora(context)
+                    }
                 )
             }
         }

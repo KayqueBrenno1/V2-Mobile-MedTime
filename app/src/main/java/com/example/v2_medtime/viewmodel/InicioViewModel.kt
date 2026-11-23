@@ -1,23 +1,28 @@
 package com.example.v2_medtime.viewmodel
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.v2_medtime.data.model.DiaCalendarioItem
 import com.example.v2_medtime.data.model.EstoqueResumoItem
 import com.example.v2_medtime.data.model.ProximoMedicamentoItem
 import com.example.v2_medtime.data.model.StatusDoseHoje
 import com.example.v2_medtime.data.repository.ApiInicioRepository
-import kotlinx.coroutines.cancelChildren
 import com.example.v2_medtime.data.repository.InicioRepository
+import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 
 class InicioViewModel(
+    application: Application,
     private val repository: InicioRepository = ApiInicioRepository()
-) : ViewModel() {
+) : AndroidViewModel(application) {
+
+    constructor(application: Application) : this(application, ApiInicioRepository())
 
     var nomeUsuario by mutableStateOf("")
         private set
@@ -123,6 +128,7 @@ class InicioViewModel(
                     resumoEstoque.clear()
                     resumoEstoque.addAll(estoques)
                 }
+                VerificacaoPeriodicaWorker.executarAgora(getApplication())
                 onSucesso()
             }.onFailure {
                 erroInicio = it.message ?: "Não foi possível registrar a dose."

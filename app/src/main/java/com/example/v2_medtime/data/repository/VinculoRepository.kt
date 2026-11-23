@@ -19,4 +19,6 @@ class VinculoRepository {
     }
 
     suspend fun listarPacientes(): Response<JsonObject> = api.listarPacientesVinculados()
+
+    suspend fun buscarMeuCuidador(): Response<JsonObject> = api.buscarMeuCuidador()
 }
