@@ -1,10 +1,14 @@
 package com.example.v2_medtime.screens
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -13,15 +17,22 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.v2_medtime.screens.components.BackgroundPadrao
+import com.example.v2_medtime.viewmodel.PerfilViewModel
+import com.example.v2_medtime.viewmodel.VinculoViewModel
+import kotlinx.coroutines.launch
 
 data class PacienteVinculado(
     val id: Int,
@@ -34,10 +45,83 @@ private val TextoPacientes = Color(0xFF101A2A)
 private val CinzaPacientes = Color(0xFF597085)
 
 @Composable
+fun AbasCuidador(
+    navController: NavController,
+    vinculoViewModel: VinculoViewModel,
+    perfilViewModel: PerfilViewModel,
+    onAdicionarPaciente: () -> Unit,
+    onErro: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { 2 }
+    )
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(pagerState.settledPage) {
+        if (pagerState.settledPage == 0) {
+            vinculoViewModel.carregarPacientes(onErro)
+        }
+    }
+
+    val irParaPagina: (Int) -> Unit = { pagina ->
+        if (pagina != pagerState.targetPage) {
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(
+                    page = pagina,
+                    animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                )
+            }
+        }
+    }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = Color(0xFFEAF3FF),
+        bottomBar = {
+            Box(modifier = Modifier.navigationBarsPadding()) {
+                BarraInferiorPacientes(
+                    onPacientes = { irParaPagina(0) },
+                    onPerfil = { irParaPagina(1) },
+                    perfilSelecionado = pagerState.targetPage == 1
+                )
+            }
+        }
+    ) { innerPadding ->
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            key = { it }
+        ) { pagina ->
+            when (pagina) {
+                0 -> GerenciarPacientesScreen(
+                    navController = navController,
+                    pacientes = vinculoViewModel.pacientes,
+                    onAdicionarPaciente = onAdicionarPaciente,
+                    mostrarBarraInferior = false,
+                    espacamentoInferiorConteudo = innerPadding.calculateBottomPadding()
+                )
+                1 -> PerfilScreen(
+                    navController = navController,
+                    viewModel = perfilViewModel,
+                    onNavigateTab = {},
+                    mostrarBarraInferior = false,
+                    espacamentoInferiorConteudo = innerPadding.calculateBottomPadding(),
+                    perfilCuidador = true
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun GerenciarPacientesScreen(
     navController: NavController,
     pacientes: List<PacienteVinculado> = emptyList(),
     onAdicionarPaciente: () -> Unit = {},
+    mostrarBarraInferior: Boolean = true,
+    espacamentoInferiorConteudo: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -51,7 +135,7 @@ fun GerenciarPacientesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding()
+                .then(if (mostrarBarraInferior) Modifier.navigationBarsPadding() else Modifier)
         ) {
             Spacer(modifier = Modifier.height(78.dp))
 
@@ -69,7 +153,8 @@ fun GerenciarPacientesScreen(
                 Icon(
                     imageVector = Icons.Outlined.PersonAdd,
                     contentDescription = null,
-                    modifier = Modifier.size(25.dp)
+                    modifier = Modifier.size(25.dp),
+                    tint = Color.White
                 )
 
                 Spacer(modifier = Modifier.width(10.dp))
@@ -77,7 +162,8 @@ fun GerenciarPacientesScreen(
                 Text(
                     text = "Adicionar paciente",
                     fontSize = 19.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
                 )
             }
 
@@ -100,7 +186,7 @@ fun GerenciarPacientesScreen(
                 contentPadding = PaddingValues(
                     start = 18.dp,
                     end = 18.dp,
-                    bottom = 16.dp
+                    bottom = espacamentoInferiorConteudo + 16.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -121,25 +207,39 @@ fun GerenciarPacientesScreen(
                         items = pacientes,
                         key = { it.id }
                     ) { paciente ->
-                        CardPacienteVinculado(paciente = paciente)
+                        CardPacienteVinculado(
+                            paciente = paciente,
+                            onClick = {
+                                navController.navigate("visao_paciente/${paciente.id}") {
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
                     }
                 }
             }
 
-            BarraInferiorPacientes(
-                onPacientes = {},
-                onPerfil = {
-                    navController.navigate("perfil_cuidador") { launchSingleTop = true }
-                }
-            )
+            if (mostrarBarraInferior) {
+                BarraInferiorPacientes(
+                    onPacientes = {},
+                    onPerfil = {
+                        navController.navigate("perfil_cuidador") { launchSingleTop = true }
+                    }
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun CardPacienteVinculado(paciente: PacienteVinculado) {
+private fun CardPacienteVinculado(
+    paciente: PacienteVinculado,
+    onClick: () -> Unit
+) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         color = Color(0xFFF8FAFF),
         shape = RoundedCornerShape(26.dp)
     ) {
@@ -178,7 +278,6 @@ private fun CardPacienteVinculado(paciente: PacienteVinculado) {
                     fontSize = 16.sp
                 )
             }
-
         }
     }
 }

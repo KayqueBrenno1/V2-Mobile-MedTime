@@ -2,6 +2,7 @@ package com.example.v2_medtime.viewmodel
 
 import android.app.Application
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -16,13 +17,19 @@ import com.example.v2_medtime.data.repository.InicioRepository
 import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 class InicioViewModel(
     application: Application,
-    private val repository: InicioRepository = ApiInicioRepository()
+    private val repository: InicioRepository = ApiInicioRepository(application.cacheDir)
 ) : AndroidViewModel(application) {
 
-    constructor(application: Application) : this(application, ApiInicioRepository())
+    constructor(application: Application) : this(application, ApiInicioRepository(application.cacheDir))
 
     var nomeUsuario by mutableStateOf("")
         private set
@@ -31,10 +38,12 @@ class InicioViewModel(
     var diaSelecionadoId by mutableStateOf("")
         private set
 
+    var deslocamentoSemana by mutableIntStateOf(0)
+        private set
+
     val proximosMedicamentos = mutableStateListOf<ProximoMedicamentoItem>()
     val resumoEstoque = mutableStateListOf<EstoqueResumoItem>()
 
-    // Controla qual card está expandido para exibir o botão verde "TOMAR"
     var cardExpandidoId by mutableStateOf<Long?>(null)
         private set
 
@@ -43,6 +52,28 @@ class InicioViewModel(
 
     var erroInicio by mutableStateOf<String?>(null)
         private set
+
+    val tituloDataSelecionada: String
+        get() {
+            val data = runCatching { LocalDate.parse(diaSelecionadoId) }.getOrNull() ?: LocalDate.now()
+            val hoje = LocalDate.now()
+            val idioma = Locale.forLanguageTag("pt-BR")
+            val mes = data.format(DateTimeFormatter.ofPattern("MMM", idioma))
+                .trimEnd('.')
+                .replaceFirstChar { it.uppercase() }
+            val diaMes = "${data.dayOfMonth} de $mes"
+            return when (data) {
+                hoje -> "Hoje, $diaMes"
+                hoje.plusDays(1) -> "Amanhã, $diaMes"
+                hoje.minusDays(1) -> "Ontem, $diaMes"
+                else -> {
+                    val diaSemana = data.dayOfWeek.getDisplayName(TextStyle.SHORT, idioma)
+                        .trimEnd('.')
+                        .replaceFirstChar { it.uppercase() }
+                    "$diaSemana, $diaMes"
+                }
+            }
+        }
 
     fun iniciarSessao(idUsuario: Long, nome: String) {
         viewModelScope.coroutineContext.cancelChildren()
@@ -53,6 +84,7 @@ class InicioViewModel(
         resumoEstoque.clear()
         cardExpandidoId = null
         diaSelecionadoId = ""
+        deslocamentoSemana = 0
         isLoading = false
         erroInicio = null
 
@@ -67,20 +99,55 @@ class InicioViewModel(
         if (isLoading) return
         viewModelScope.launch {
             isLoading = true
-            repository.obterDiasCalendario().onSuccess { dias ->
-                diasCalendario.clear()
-                diasCalendario.addAll(dias)
-                val hoje = dias.firstOrNull { it.isHoje } ?: dias.firstOrNull()
-                if (hoje != null) {
-                    diaSelecionadoId = hoje.id
+            try {
+                if (diasCalendario.isEmpty()) {
+                    atualizarDiasDaSemana(0, selecionarHoje = true)
                 }
+                if (diaSelecionadoId.isNotBlank()) {
+                    carregarDosesDoDia(diaSelecionadoId)
+                }
+                repository.obterResumoEstoque().onSuccess { estoques ->
+                    resumoEstoque.clear()
+                    resumoEstoque.addAll(estoques)
+                }
+            } finally {
+                isLoading = false
             }
-            carregarDosesDoDia(diaSelecionadoId)
-            repository.obterResumoEstoque().onSuccess { estoques ->
-                resumoEstoque.clear()
-                resumoEstoque.addAll(estoques)
-            }
-            isLoading = false
+        }
+    }
+
+    fun navegarSemana(deltaSemanas: Int) {
+        if (isLoading) return
+        val novaSemana = deslocamentoSemana + deltaSemanas
+        atualizarDiasDaSemana(novaSemana, selecionarHoje = novaSemana == 0)
+        selecionarDia(diaSelecionadoId)
+    }
+
+    private fun atualizarDiasDaSemana(semanaOffset: Int, selecionarHoje: Boolean) {
+        deslocamentoSemana = semanaOffset
+        val hoje = LocalDate.now()
+        val segundaDaSemana = hoje
+            .plusWeeks(semanaOffset.toLong())
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val idioma = Locale.forLanguageTag("pt-BR")
+
+        val dias = (0L..6L).map { offset ->
+            val dia = segundaDaSemana.plusDays(offset)
+            DiaCalendarioItem(
+                id = dia.toString(),
+                diaSemana = dia.dayOfWeek.getDisplayName(TextStyle.SHORT, idioma)
+                    .trimEnd('.')
+                    .replaceFirstChar { it.uppercase() },
+                diaNumero = dia.dayOfMonth.toString().padStart(2, '0'),
+                isHoje = dia == hoje
+            )
+        }
+        diasCalendario.clear()
+        diasCalendario.addAll(dias)
+        diaSelecionadoId = if (selecionarHoje) {
+            dias.firstOrNull { it.isHoje }?.id ?: dias.first().id
+        } else {
+            dias.first().id
         }
     }
 

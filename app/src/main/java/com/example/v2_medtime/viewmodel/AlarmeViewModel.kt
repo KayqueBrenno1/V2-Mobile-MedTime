@@ -11,6 +11,7 @@ import com.example.v2_medtime.data.remote.RetrofitClient
 import com.example.v2_medtime.data.repository.exigirSucesso
 import com.example.v2_medtime.data.repository.requisitar
 import com.example.v2_medtime.notifications.AlarmeAudioPlayer
+import com.example.v2_medtime.notifications.AlarmeMedicamentoService
 import com.example.v2_medtime.notifications.NotificacaoHelper
 import com.google.gson.JsonObject
 import kotlinx.coroutines.launch
@@ -45,7 +46,7 @@ class AlarmeViewModel(application: Application) : AndroidViewModel(application) 
         val alarme = alarmeAtual ?: return
         if (carregando) return
 
-        AlarmeAudioPlayer.parar()
+        AlarmeMedicamentoService.parar(getApplication())
 
         viewModelScope.launch {
             carregando = true
@@ -74,7 +75,7 @@ class AlarmeViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun dispensarAlarme() {
-        AlarmeAudioPlayer.parar()
+        AlarmeMedicamentoService.parar(getApplication())
         alarmeAtual?.let {
             NotificacaoHelper.cancelar(getApplication(), it.notificacaoId)
         }

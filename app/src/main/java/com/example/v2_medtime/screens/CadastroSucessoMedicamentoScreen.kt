@@ -154,7 +154,9 @@ fun CadastroSucessoMedicamentoScreen(
 
                 OutlinedButton(
                     onClick = {
-                        navController.popBackStack("abas_principais", inclusive = false)
+                        if (!navController.popBackStack("abas_principais", inclusive = false)) {
+                            navController.popBackStack("visao_paciente/{pacienteId}", inclusive = false)
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()

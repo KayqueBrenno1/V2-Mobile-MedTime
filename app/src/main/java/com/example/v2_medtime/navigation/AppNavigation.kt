@@ -1,4 +1,3 @@
-
 package com.example.v2_medtime.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -8,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +21,9 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -29,8 +32,10 @@ import com.example.v2_medtime.data.local.NotificacaoStorage
 import com.example.v2_medtime.data.model.AlarmeMedicamento
 import com.example.v2_medtime.data.remote.AuthSessionEvents
 import com.example.v2_medtime.data.remote.GoogleAuthManager
+import com.example.v2_medtime.data.remote.RetrofitClient
 import com.example.v2_medtime.notifications.AgendadorAlarmesMedicamento
 import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
+import com.example.v2_medtime.screens.AlarmeMedicamentoScreen
 import com.example.v2_medtime.screens.AlterarSenhaScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
 import com.example.v2_medtime.screens.CodigoGeradoScreen
@@ -43,6 +48,7 @@ import com.example.v2_medtime.screens.GerenciarPacientesScreen
 import com.example.v2_medtime.screens.InserirCodigoVinculoScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.MedicamentosIdentificadosScreen
+import com.example.v2_medtime.screens.MeuCuidadorScreen
 import com.example.v2_medtime.screens.PerfilScreen
 import com.example.v2_medtime.screens.VinculoRealizadoScreen
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
@@ -69,6 +75,8 @@ import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 import com.example.v2_medtime.viewmodel.PerfilViewModel
 import com.example.v2_medtime.viewmodel.RecuperacaoSenhaViewModel
 import com.example.v2_medtime.viewmodel.VinculoViewModel
+import com.google.gson.JsonObject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -133,7 +141,7 @@ fun AppNavigation(
             NotificacaoStorage(context).limparTudo()
             loginViewModel.limparEstadoSessao()
             loginViewModel.limparErro()
-            perfilViewModel.carregarPerfil(com.google.gson.JsonObject())
+            perfilViewModel.carregarPerfil(JsonObject())
             vinculoViewModel.limparSessao()
             inicioViewModel.iniciarSessao(0L, "")
             medicamentoViewModel.iniciarSessao(0L)
@@ -317,6 +325,40 @@ fun AppNavigation(
         }
     }
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var jaIniciouUmaVez by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner, alarmeInicial) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                if (jaIniciouUmaVez && alarmeInicial == null) {
+                    val rotaAtual = navController.currentDestination?.route
+                    if (rotaAtual != "splash" && rotaAtual != "alarme") {
+                        navController.navigate("splash") {
+                            launchSingleTop = true
+                        }
+                    }
+                }
+                jaIniciouUmaVez = true
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Sincronização rápida em primeiro plano quando o paciente está usando o app
+    LaunchedEffect(perfilViewModel.perfil.id, loginViewModel.cuidadorAutenticado) {
+        val idPaciente = perfilViewModel.perfil.id
+        if (idPaciente > 0L && !loginViewModel.cuidadorAutenticado) {
+            while (true) {
+                delay(15_000L)
+                inicioViewModel.carregarDadosIniciais()
+                medicamentoViewModel.carregarMedicamentos()
+                AgendadorAlarmesMedicamento.sincronizarAlarmes(context)
+            }
+        }
+    }
+
     // DADOS TEMPORÁRIOS
     var emailCadastro by rememberSaveable {
         mutableStateOf("")
@@ -390,6 +432,7 @@ fun AppNavigation(
         ) {
             composable("splash") {
                 LaunchedEffect(Unit) {
+                    RetrofitClient.acordarServidor()
                     val sessaoRestaurada = loginViewModel.restaurarSessao()
                     if (!sessaoRestaurada) {
                         navController.navigate("boas_vindas") {
@@ -654,7 +697,7 @@ fun AppNavigation(
                     pacientes = vinculoViewModel.pacientes,
                     onAdicionarPaciente = {
                         navController.navigate("gerar_codigo")
-                    },
+                    }
                 )
             }
 
@@ -682,6 +725,15 @@ fun AppNavigation(
                 EditarPerfilScreen(
                     navController = navController,
                     viewModel = perfilViewModel
+                )
+            }
+
+            composable("meu_cuidador") {
+                MeuCuidadorScreen(
+                    navController = navController,
+                    vinculoViewModel = vinculoViewModel,
+                    onErro = mostrarMensagem,
+                    onSucesso = mostrarMensagem
                 )
             }
 
@@ -808,7 +860,6 @@ fun AppNavigation(
             }
 
             composable("codigo_gerado/{codigo}") { backStackEntry ->
-
                 val codigo = backStackEntry.arguments
                     ?.getString("codigo").orEmpty()
 
@@ -819,7 +870,7 @@ fun AppNavigation(
             }
 
             composable("alarme_medicamento") {
-                com.example.v2_medtime.screens.AlarmeMedicamentoScreen(
+                AlarmeMedicamentoScreen(
                     navController = navController,
                     viewModel = alarmeViewModel,
                     onDoseConfirmada = {

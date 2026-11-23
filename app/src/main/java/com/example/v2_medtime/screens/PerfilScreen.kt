@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PersonOutline
@@ -86,7 +87,13 @@ fun PerfilScreen(
             bottomBar = {
                 if (perfilCuidador) {
                     BarraInferiorPacientes(
-                        onPacientes = { navController.popBackStack() },
+                        onPacientes = {
+                            if (!navController.popBackStack("gerenciar_pacientes", inclusive = false)) {
+                                navController.navigate("gerenciar_pacientes") {
+                                    launchSingleTop = true
+                                }
+                            }
+                        },
                         onPerfil = {},
                         perfilSelecionado = true
                     )
@@ -184,9 +191,9 @@ fun PerfilScreen(
                             icon = Icons.Outlined.PersonOutline,
                             iconeFundo = Color(0xFFE5F3FD),
                             iconeCor = Color(0xFF1592D0),
-                            titulo = "Vincular cuidador",
+                            titulo = "Meu cuidador",
                             onClick = {
-                                navController.navigate("inserir_codigo_vinculo")
+                                navController.navigate("meu_cuidador")
                             }
                         )
                     }

@@ -212,4 +212,24 @@ object NotificacaoHelper {
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED
     }
+
+    fun extrairAlarmeDaIntent(intent: Intent?): AlarmeMedicamento? {
+        if (intent?.getBooleanExtra(EXTRA_ABRIR_ALARME, false) != true) {
+            return null
+        }
+
+        val idReceita = intent.getLongExtra(EXTRA_ID_RECEITA, 0L)
+        val nome = intent.getStringExtra(EXTRA_NOME_MEDICAMENTO).orEmpty()
+        if (idReceita <= 0L || nome.isBlank()) return null
+
+        return AlarmeMedicamento(
+            notificacaoId = intent.getIntExtra(EXTRA_NOTIFICACAO_ID, 0),
+            idReceita = idReceita,
+            nomeMedicamento = nome,
+            dosagemTexto = intent.getStringExtra(EXTRA_DOSAGEM_TEXTO).orEmpty(),
+            horarioFormatado = intent.getStringExtra(EXTRA_HORARIO_FORMATADO).orEmpty(),
+            horarioProgramadoIso = intent.getStringExtra(EXTRA_HORARIO_PROGRAMADO).orEmpty(),
+            imagemUrl = intent.getStringExtra(EXTRA_IMAGEM_URL)
+        )
+    }
 }

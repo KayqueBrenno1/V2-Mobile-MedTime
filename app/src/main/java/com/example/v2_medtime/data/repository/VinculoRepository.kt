@@ -6,7 +6,7 @@ import retrofit2.Response
 
 class VinculoRepository {
 
-    private val api = RetrofitClient.api
+    private val api get() = RetrofitClient.api
 
     suspend fun gerarCodigo(): Response<JsonObject> = api.gerarCodigoVinculo()
 
@@ -21,4 +21,10 @@ class VinculoRepository {
     suspend fun listarPacientes(): Response<JsonObject> = api.listarPacientesVinculados()
 
     suspend fun buscarMeuCuidador(): Response<JsonObject> = api.buscarMeuCuidador()
+
+    suspend fun encerrarVinculo(idPaciente: Long): Result<Unit> = requisitar {
+        require(idPaciente > 0L) { "Paciente inválido para encerrar o vínculo." }
+        api.encerrarVinculoPaciente(idPaciente)
+            .exigirSucesso("Não foi possível encerrar o vínculo.")
+    }
 }

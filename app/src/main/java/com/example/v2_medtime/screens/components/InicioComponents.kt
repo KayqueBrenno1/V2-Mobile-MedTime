@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.v2_medtime.data.model.DiaCalendarioItem
@@ -135,10 +136,12 @@ fun ProximoMedicamentoCard(
         StatusDoseHoje.TOMADO -> Color(0xFF22C55E) to Color.White
     }
 
+    val isTomado = item.status == StatusDoseHoje.TOMADO
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggleExpandir),
+            .clickable(onClick = if (isTomado) onAbrirDetalhes else onToggleExpandir),
         shape = RoundedCornerShape(22.dp),
         color = Color.White,
         shadowElevation = 2.dp
@@ -152,7 +155,6 @@ fun ProximoMedicamentoCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Ícone cápsula azul
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -172,11 +174,10 @@ fun ProximoMedicamentoCard(
                 Spacer(modifier = Modifier.width(14.dp))
 
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "${item.nome} ${item.concentracao} ${item.unidadeMedida}".trim(),
+                        text = item.nome,
                         color = Color(0xFF0F172A),
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
@@ -218,15 +219,17 @@ fun ProximoMedicamentoCard(
                     }
                 }
 
-                Icon(
-                    imageVector = if (expandido) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expandido) "Recolher" else "Expandir",
-                    tint = Color(0xFF475569),
-                    modifier = Modifier.size(24.dp)
-                )
+                if (!isTomado) {
+                    Icon(
+                        imageVector = if (expandido) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (expandido) "Recolher" else "Expandir",
+                        tint = Color(0xFF475569),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
-            AnimatedVisibility(visible = expandido && item.status != StatusDoseHoje.TOMADO) {
+            AnimatedVisibility(visible = expandido && !isTomado) {
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
@@ -250,6 +253,7 @@ fun ProximoMedicamentoCard(
                         )
                     }
                     if (!podeTomar) {
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "Disponível a partir das $horarioLiberacao",
                             color = Color(0xFF64748B),
@@ -271,59 +275,75 @@ fun EstoqueCircularCard(
     val progresso = if (item.total > 0) {
         (item.atual.toFloat() / item.total.toFloat()).coerceIn(0f, 1f)
     } else {
-        1f
+        0f
     }
     val estoqueBaixo = item.atual <= 5
     val corArco = if (estoqueBaixo) Color(0xFFEF4444) else Color(0xFF1E88E5)
 
     Surface(
         modifier = modifier
-            .height(145.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
         color = Color.White,
         shadowElevation = 2.dp
     ) {
-        Box(
-            modifier = Modifier.padding(14.dp),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Canvas(modifier = Modifier.size(104.dp)) {
-                // Trilha de fundo sutil
-                drawArc(
-                    color = Color(0xFFF1F5F9),
-                    startAngle = -90f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
-                )
-                // Progresso colorido
-                drawArc(
-                    color = corArco,
-                    startAngle = -90f,
-                    sweepAngle = 360f * progresso,
-                    useCenter = false,
-                    style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
-                )
+            Box(
+                modifier = Modifier.size(104.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.size(104.dp)) {
+                    drawArc(
+                        color = Color(0xFFF1F5F9),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        color = corArco,
+                        startAngle = -90f,
+                        sweepAngle = 360f * progresso,
+                        useCenter = false,
+                        style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = if (item.total > 0) "${item.atual}/${item.total}" else "${item.atual}",
+                        color = Color(0xFF0F172A),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    if (item.unidade.isNotBlank()) {
+                        Text(
+                            text = item.unidade,
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = item.nome,
-                    color = Color(0xFF0F172A),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = if (item.total > 0) "${item.atual}/${item.total} ${item.unidade}"
-                else "${item.atual} ${item.unidade}",
-                    color = Color(0xFF334155),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
-                )
-            }
+            Text(
+                text = item.nome,
+                color = Color(0xFF0F172A),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

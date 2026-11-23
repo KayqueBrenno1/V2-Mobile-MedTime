@@ -153,7 +153,8 @@ fun VinculoRealizadoScreen(
                 Text(
                     text = "Voltar ao menu",
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
                 )
             }
 

@@ -173,7 +173,8 @@ fun CodigoGeradoScreen(
                 Icon(
                     imageVector = Icons.Outlined.ContentCopy,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.White
                 )
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -181,7 +182,8 @@ fun CodigoGeradoScreen(
                 Text(
                     text = "Copiar código",
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
                 )
             }
 

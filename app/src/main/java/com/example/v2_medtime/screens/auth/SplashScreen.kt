@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
 private val AzulEscuro = Color(0xFF10265E)
 private val AzulPrincipal = Color(0xFF3478F6)
@@ -35,9 +36,12 @@ private val AzulPrincipal = Color(0xFF3478F6)
 @Composable
 fun SplashScreen() {
     var iniciarAnimacao by remember { mutableStateOf(false) }
+    var aguardandoServidor by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         iniciarAnimacao = true
+        delay(2_500L)
+        aguardandoServidor = true
     }
 
     val opacidade by animateFloatAsState(
@@ -103,5 +107,14 @@ fun SplashScreen() {
             color = AzulPrincipal,
             strokeWidth = 3.dp
         )
+
+        if (aguardandoServidor) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Conectando ao servidor...",
+                fontSize = 14.sp,
+                color = AzulEscuro.copy(alpha = 0.75f)
+            )
+        }
     }
 }

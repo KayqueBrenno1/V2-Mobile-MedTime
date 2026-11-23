@@ -7,6 +7,8 @@ import com.example.v2_medtime.data.model.StatusDoseHoje
 import com.example.v2_medtime.data.remote.RetrofitClient
 import com.example.v2_medtime.data.remote.texto
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -21,12 +23,36 @@ interface InicioRepository {
     suspend fun registrarDoseTomada(doseId: Long): Result<Unit>
 }
 
-class ApiInicioRepository : InicioRepository {
+class ApiInicioRepository(
+    private val cacheDir: File? = null
+) : InicioRepository {
 
     var idUsuario: Long = 0L
     private val api get() = RetrofitClient.api
     private val dosesPorId = mutableMapOf<Long, Pair<Long, String>>()
     private var proximoIdDose = 0L
+
+    private fun obterTotalReferenciaEstoque(idReceita: Long, quantidadeAtual: Int): Int {
+        val dir = cacheDir ?: return quantidadeAtual.coerceAtLeast(1)
+        if (idReceita <= 0L) return quantidadeAtual.coerceAtLeast(1)
+
+        val arquivo = File(dir, "medtime_estoque_referencia.json")
+        val root = runCatching {
+            if (arquivo.exists()) JsonParser.parseString(arquivo.readText()).asJsonObject else JsonObject()
+        }.getOrDefault(JsonObject())
+
+        val salvo = runCatching { root.get(idReceita.toString())?.asInt }.getOrNull() ?: 0
+        val total = maxOf(salvo, quantidadeAtual).coerceAtLeast(1)
+
+        if (total != salvo && quantidadeAtual > 0) {
+            runCatching {
+                root.addProperty(idReceita.toString(), total)
+                arquivo.writeText(root.toString())
+            }
+        }
+
+        return total
+    }
 
     override suspend fun obterDiasCalendario(): Result<List<DiaCalendarioItem>> {
         val hoje = LocalDate.now()
@@ -65,7 +91,7 @@ class ApiInicioRepository : InicioRepository {
                 dosagemTexto = listOfNotNull(dose.texto("dosagem"), dose.texto("tipo_dosagem")).joinToString(" "),
                 horario = instante.atZone(fuso).format(DateTimeFormatter.ofPattern("HH:mm")),
                 horarioProgramado = instante,
-                status = when (dose.texto("status")) {
+                status = when (dose.texto("status")?.trim()?.uppercase()) {
                     "TOMADO" -> StatusDoseHoje.TOMADO
                     "ATRASADO" -> StatusDoseHoje.ATRASADO
                     else -> StatusDoseHoje.PENDENTE
@@ -93,7 +119,7 @@ class ApiInicioRepository : InicioRepository {
                     medicamentoId = idReceita,
                     nome = estoque.texto("nome_medicamento").orEmpty(),
                     atual = quantidade,
-                    total = 0,
+                    total = obterTotalReferenciaEstoque(idReceita, quantidade),
                     unidade = estoque.texto("tipo_dosagem").orEmpty()
                 )
             }

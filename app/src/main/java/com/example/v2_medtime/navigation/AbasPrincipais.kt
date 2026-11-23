@@ -95,7 +95,7 @@ fun AbasPrincipais(
         containerColor = Color(0xFFF3F8FD),
         bottomBar = {
             AgendaBottomBar(
-                selectedTab = abas[pagerState.targetPage],
+                selectedTab = abas[pagerState.currentPage],
                 onTabSelected = navegarParaAba
             )
         }
@@ -105,6 +105,7 @@ fun AbasPrincipais(
 
         HorizontalPager(
             state = pagerState,
+            userScrollEnabled = true,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
@@ -112,7 +113,7 @@ fun AbasPrincipais(
                     end = innerPadding.calculateEndPadding(direcaoLayout)
                 )
                 .consumeWindowInsets(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
-            beyondViewportPageCount = 0,
+            beyondViewportPageCount = 1,
             key = { it }
         ) { pagina ->
 

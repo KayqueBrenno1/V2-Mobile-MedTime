@@ -145,12 +145,7 @@ fun HistoricoScreen(
                         items = listaFiltrada,
                         key = { it.id }
                     ) { item ->
-                        HistoricoCard(
-                            item = item,
-                            onClick = {
-                                navController.navigate("detalhes_medicamento/${item.medicamentoId}")
-                            }
-                        )
+                        HistoricoCard(item = item)
                     }
                 }
             }

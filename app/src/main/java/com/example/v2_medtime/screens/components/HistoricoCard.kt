@@ -1,7 +1,6 @@
 package com.example.v2_medtime.screens.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,9 +12,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
@@ -27,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.v2_medtime.data.model.HistoricoItem
@@ -43,7 +43,6 @@ private val paletaHistorico = listOf(
 @Composable
 fun HistoricoCard(
     item: HistoricoItem,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val estiloCor = paletaHistorico[item.colorIndex % paletaHistorico.size]
@@ -52,9 +51,7 @@ fun HistoricoCard(
     val statusIcone = if (isTomado) Icons.Filled.CheckCircle else Icons.Filled.Cancel
 
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         color = Color.White,
         shadowElevation = 2.dp
@@ -84,25 +81,16 @@ fun HistoricoCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = item.nomeMedicamento,
-                        color = Color(0xFF0F172A),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = item.dataLabel,
-                        color = Color(0xFF64748B),
-                        fontSize = 13.sp
-                    )
-                }
+                Text(
+                    text = item.nomeMedicamento,
+                    color = Color(0xFF0F172A),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -121,13 +109,29 @@ fun HistoricoCard(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (item.dataLabel.isNotBlank()) {
+                        Icon(
+                            imageVector = Icons.Outlined.CalendarToday,
+                            contentDescription = null,
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = item.dataLabel,
+                            color = Color(0xFF64748B),
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                    }
+
                     Icon(
                         imageVector = Icons.Outlined.Schedule,
                         contentDescription = null,
                         tint = Color(0xFF64748B),
                         modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         text = item.horario,
                         color = Color(0xFF64748B),
@@ -135,15 +139,6 @@ fun HistoricoCard(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Ver detalhes",
-                tint = Color(0xFF64748B),
-                modifier = Modifier.size(22.dp)
-            )
         }
     }
 }

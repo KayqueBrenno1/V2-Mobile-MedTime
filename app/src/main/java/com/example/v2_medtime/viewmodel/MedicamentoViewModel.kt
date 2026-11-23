@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.data.repository.ApiMedicamentoRepository
 import com.example.v2_medtime.data.repository.MedicamentoRepository
+import com.example.v2_medtime.notifications.AgendadorAlarmesMedicamento
 import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
@@ -130,6 +131,7 @@ class MedicamentoViewModel(
                 .onSuccess { novoItem ->
                     ultimoMedicamento = novoItem
                     listaMedicamentos.add(0, novoItem)
+                    AgendadorAlarmesMedicamento.sincronizarAlarmes(getApplication())
                     VerificacaoPeriodicaWorker.executarAgora(getApplication())
                     onSucesso()
                 }
@@ -158,6 +160,7 @@ class MedicamentoViewModel(
                     if (index != -1) {
                         listaMedicamentos[index] = itemAtualizado
                     }
+                    AgendadorAlarmesMedicamento.sincronizarAlarmes(getApplication())
                     VerificacaoPeriodicaWorker.executarAgora(getApplication())
                     onSucesso()
                 }
@@ -207,6 +210,7 @@ class MedicamentoViewModel(
             repository.excluirMedicamento(id)
                 .onSuccess {
                     listaMedicamentos.removeAll { it.id == id }
+                    AgendadorAlarmesMedicamento.sincronizarAlarmes(getApplication())
                     VerificacaoPeriodicaWorker.executarAgora(getApplication())
                     onSucesso()
                 }
@@ -288,6 +292,7 @@ class MedicamentoViewModel(
                     listaMedicamentos.add(0, novoItem)
                     remediosIdentificadosOcr.remove(item)
                 }
+                AgendadorAlarmesMedicamento.sincronizarAlarmes(getApplication())
                 VerificacaoPeriodicaWorker.executarAgora(getApplication())
                 onConcluido()
             } finally {

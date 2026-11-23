@@ -1,6 +1,5 @@
 package com.example.v2_medtime.screens
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,26 +26,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.v2_medtime.R
 import com.example.v2_medtime.notifications.NotificacaoHelper
 import com.example.v2_medtime.viewmodel.AlarmeViewModel
 
 private val FundoAlarme = Color(0xFFF7FAFC)
 private val AzulAlarme = Color(0xFF1485BD)
 private val VerdeAlarme = Color(0xFF009973)
+
+private val Jersey10FontFamily = FontFamily(
+    Font(R.font.jersey_10_regular, FontWeight.Normal)
+)
 
 @Composable
 fun AlarmeMedicamentoScreen(
@@ -112,12 +115,17 @@ fun AlarmeMedicamentoScreen(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            RelogioDigitalPixelado(
-                horario = alarme?.horarioFormatado?.ifBlank { "00:00" } ?: "00:00",
-                cor = VerdeAlarme
+            Text(
+                text = alarme?.horarioFormatado?.ifBlank { "00:00" } ?: "00:00",
+                color = VerdeAlarme,
+                fontFamily = Jersey10FontFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = 76.sp,
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Column(
                 modifier = Modifier.width(IntrinsicSize.Max),
@@ -197,147 +205,4 @@ fun AlarmeMedicamentoScreen(
             }
         }
     }
-}
-
-@Composable
-private fun RelogioDigitalPixelado(
-    horario: String,
-    cor: Color,
-    tamanhoPixel: Dp = 10.dp
-) {
-    val caracteres = horario.filter { it.isDigit() || it == ':' }.ifEmpty { "00:00" }
-    val espacamentoCaractere = 2
-    val colunasTotais = caracteres.sumOf { larguraGlifo(it) } +
-            (caracteres.length - 1).coerceAtLeast(0) * espacamentoCaractere
-    val linhasTotais = 6
-
-    Canvas(
-        modifier = Modifier
-            .width(tamanhoPixel * colunasTotais)
-            .height(tamanhoPixel * linhasTotais)
-    ) {
-        val px = size.width / colunasTotais
-        val py = size.height / linhasTotais
-        var colunaAtual = 0
-
-        caracteres.forEach { char ->
-            val matriz = obterMatrizPixel(char)
-            for (linha in matriz.indices) {
-                for (coluna in matriz[linha].indices) {
-                    if (matriz[linha][coluna] == 1) {
-                        drawRect(
-                            color = cor,
-                            topLeft = Offset(
-                                x = (colunaAtual + coluna) * px,
-                                y = linha * py
-                            ),
-                            size = Size(px + 0.5f, py + 0.5f)
-                        )
-                    }
-                }
-            }
-            colunaAtual += larguraGlifo(char) + espacamentoCaractere
-        }
-    }
-}
-
-private fun larguraGlifo(char: Char): Int = if (char == ':') 1 else 4
-
-private fun obterMatrizPixel(char: Char): Array<IntArray> = when (char) {
-    '0' -> arrayOf(
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1)
-    )
-    '1' -> arrayOf(
-        intArrayOf(0, 1, 1, 0),
-        intArrayOf(1, 1, 1, 0),
-        intArrayOf(0, 1, 1, 0),
-        intArrayOf(0, 1, 1, 0),
-        intArrayOf(0, 1, 1, 0),
-        intArrayOf(1, 1, 1, 1)
-    )
-    '2' -> arrayOf(
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(0, 0, 1, 1),
-        intArrayOf(0, 1, 1, 0),
-        intArrayOf(1, 1, 0, 0),
-        intArrayOf(1, 1, 1, 1)
-    )
-    '3' -> arrayOf(
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(0, 0, 0, 1),
-        intArrayOf(0, 1, 1, 1),
-        intArrayOf(0, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1)
-    )
-    '4' -> arrayOf(
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(0, 0, 0, 1),
-        intArrayOf(0, 0, 0, 1),
-        intArrayOf(0, 0, 0, 1)
-    )
-    '5' -> arrayOf(
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 0),
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(0, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1)
-    )
-    '6' -> arrayOf(
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 0),
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1)
-    )
-    '7' -> arrayOf(
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(0, 0, 1, 1),
-        intArrayOf(0, 1, 1, 0),
-        intArrayOf(0, 1, 1, 0),
-        intArrayOf(0, 1, 1, 0)
-    )
-    '8' -> arrayOf(
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1)
-    )
-    '9' -> arrayOf(
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1),
-        intArrayOf(0, 0, 0, 1),
-        intArrayOf(1, 0, 0, 1),
-        intArrayOf(1, 1, 1, 1)
-    )
-    ':' -> arrayOf(
-        intArrayOf(0),
-        intArrayOf(1),
-        intArrayOf(0),
-        intArrayOf(0),
-        intArrayOf(1),
-        intArrayOf(0)
-    )
-    else -> arrayOf(
-        intArrayOf(0, 0, 0, 0),
-        intArrayOf(0, 0, 0, 0),
-        intArrayOf(0, 0, 0, 0),
-        intArrayOf(0, 0, 0, 0),
-        intArrayOf(0, 0, 0, 0),
-        intArrayOf(0, 0, 0, 0)
-    )
 }

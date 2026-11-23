@@ -231,7 +231,9 @@ fun MedicamentosIdentificadosScreen(
                                 "$totalSelecionados medicamento(s) cadastrado(s)!",
                                 Toast.LENGTH_SHORT
                             ).show()
-                            navController.popBackStack("abas_principais", inclusive = false)
+                            if (!navController.popBackStack("abas_principais", inclusive = false)) {
+                                navController.popBackStack("visao_paciente/{pacienteId}", inclusive = false)
+                            }
                         }
                     },
                     enabled = totalSelecionados > 0 && !viewModel.isLoading && !viewModel.isEscaneandoOcr,
