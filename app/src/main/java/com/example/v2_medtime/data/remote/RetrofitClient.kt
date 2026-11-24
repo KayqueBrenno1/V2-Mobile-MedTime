@@ -11,7 +11,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-    private const val BASE_URL = "https://medtime-backend.onrender.com"
+    private const val BASE_URL = "http://192.168.18.7:8080"
     private lateinit var applicationContext: Context
 
     fun inicializar(context: Context) {
@@ -27,6 +27,25 @@ object RetrofitClient {
             .retryOnConnectionFailure(true)
             .addInterceptor(AuthInterceptor(applicationContext))
             .build()
+    }
+
+    private val ocrClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(180, TimeUnit.SECONDS)
+            .callTimeout(200, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
+            .build()
+    }
+
+    val ocrApi: MedTimeApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(ocrClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(MedTimeApi::class.java)
     }
 
     suspend fun acordarServidor(tentativasMaximas: Int = 3): Boolean {

@@ -249,13 +249,23 @@ fun EscolhaCadastroMedicamentoScreen(
                                 context.cacheDir,
                                 "receita_ocr_${System.currentTimeMillis()}.jpg"
                             )
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                arquivo
-                            )
-                            caminhoReceitaAtual = arquivo.absolutePath
-                            cameraOcrLauncher.launch(uri)
+                            try {
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    arquivo
+                                )
+                                caminhoReceitaAtual = arquivo.absolutePath
+                                cameraOcrLauncher.launch(uri)
+                            } catch (e: Exception) {
+                                arquivo.delete()
+                                caminhoReceitaAtual = null
+                                Toast.makeText(
+                                    context,
+                                    "Não foi possível abrir a câmera neste dispositivo.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                     }
                 },

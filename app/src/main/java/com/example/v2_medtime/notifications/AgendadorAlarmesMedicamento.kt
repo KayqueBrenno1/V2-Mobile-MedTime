@@ -73,20 +73,22 @@ object AgendadorAlarmesMedicamento {
 
             val pendingReceiver = criarPendingIntentReceiver(context, alarme)
             if (podeExato) {
-                val pendingTela = PendingIntent.getActivity(
-                    context,
-                    alarme.notificacaoId,
-                    NotificacaoHelper.criarIntentTelaAlarme(context, alarme),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                val infoDespertador = AlarmManager.AlarmClockInfo(gatilhoMillis, pendingTela)
-                alarmManager.setAlarmClock(infoDespertador, pendingReceiver)
-            } else {
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    gatilhoMillis,
-                    pendingReceiver
-                )
+                try {
+                    val pendingTela = PendingIntent.getActivity(
+                        context,
+                        alarme.notificacaoId,
+                        NotificacaoHelper.criarIntentTelaAlarme(context, alarme),
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    val infoDespertador = AlarmManager.AlarmClockInfo(gatilhoMillis, pendingTela)
+                    alarmManager.setAlarmClock(infoDespertador, pendingReceiver)
+                } catch (_: SecurityException) {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        gatilhoMillis,
+                        pendingReceiver
+                    )
+                }
             }
             novosIds.add(alarme.notificacaoId.toString())
         }

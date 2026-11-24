@@ -1,6 +1,7 @@
 package com.example.v2_medtime.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -62,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -82,6 +84,7 @@ fun CompletarDadosOcrScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     val azulPrincipal = Color(0xFF0077D7)
     val azulIcone = Color(0xFF1592D0)
@@ -100,12 +103,21 @@ fun CompletarDadosOcrScreen(
     var mostrarErroCampo by remember { mutableStateOf(false) }
     var mostrarSeletorHora by remember { mutableStateOf(false) }
 
+    fun sairDoAssistente() {
+        focusManager.clearFocus()
+        if (!navController.popBackStack()) {
+            navController.navigate("abas_principais") {
+                launchSingleTop = true
+            }
+        }
+    }
+
     val idAtual = idsSelecionados.getOrNull(indiceMedicamento)
     val itemAtual = idAtual?.let { viewModel.buscarItemOcrPorId(it) }
 
     if (itemAtual == null) {
         LaunchedEffect(Unit) {
-            navController.popBackStack()
+            sairDoAssistente()
         }
         return
     }
@@ -139,6 +151,46 @@ fun CompletarDadosOcrScreen(
     val perguntaAtual = perguntasDoMedicamento.getOrNull(indicePergunta) ?: return
     val dados = itemAtual.dados
 
+    // Preenche automaticamente unidades padrão quando estiverem vazias para não travar no placeholder
+    LaunchedEffect(idAtual, perguntaAtual) {
+        when (perguntaAtual) {
+            PerguntaOcr.CONCENTRACAO -> {
+                if (dados.unidadeMedida.isBlank()) {
+                    val unidadePadrao = when (dados.tipoMedicamento.lowercase(Locale.ROOT)) {
+                        "gotas", "solução", "xarope", "suspensão" -> "ml"
+                        else -> "mg"
+                    }
+                    viewModel.atualizarItemOcr(
+                        itemAtual.idTemporario,
+                        dados.copy(unidadeMedida = unidadePadrao)
+                    )
+                }
+            }
+            PerguntaOcr.DOSE -> {
+                if (dados.unidadeDose.isBlank()) {
+                    val unidadeDosePadrao = when (dados.tipoMedicamento.lowercase(Locale.ROOT)) {
+                        "gotas" -> "gt"
+                        "solução", "xarope", "suspensão" -> "ml"
+                        else -> "un"
+                    }
+                    viewModel.atualizarItemOcr(
+                        itemAtual.idTemporario,
+                        dados.copy(unidadeDose = unidadeDosePadrao)
+                    )
+                }
+            }
+            PerguntaOcr.FREQUENCIA -> {
+                if (dados.intervaloDosagem.isBlank()) {
+                    viewModel.atualizarItemOcr(
+                        itemAtual.idTemporario,
+                        dados.copy(intervaloDosagem = "hora")
+                    )
+                }
+            }
+            else -> Unit
+        }
+    }
+
     val timePickerState = rememberTimePickerState(
         initialHour = dados.horarioInicial.substringBefore(":").toIntOrNull() ?: 8,
         initialMinute = dados.horarioInicial.substringAfter(":", "").toIntOrNull() ?: 0,
@@ -150,29 +202,47 @@ fun CompletarDadosOcrScreen(
         viewModel.atualizarItemOcr(itemAtual.idTemporario, novosDados)
     }
 
-    fun respostaAtualValida(): Boolean = when (perguntaAtual) {
-        PerguntaOcr.NOME -> dados.nome.isNotBlank()
-        PerguntaOcr.CONCENTRACAO -> dados.concentracao.isNotBlank() && dados.unidadeMedida.isNotBlank()
-        PerguntaOcr.TIPO_MEDICAMENTO -> dados.tipoMedicamento.isNotBlank()
-        PerguntaOcr.DOSE -> dados.dose.isNotBlank() && dados.unidadeDose.isNotBlank()
-        PerguntaOcr.FREQUENCIA -> dados.frequencia.isNotBlank() && dados.intervaloDosagem.isNotBlank()
-        PerguntaOcr.HORARIO_INICIAL -> dados.horarioInicial.isNotBlank()
-        PerguntaOcr.ESTOQUE_ATUAL -> (dados.quantidadeTotal.toIntOrNull() ?: 0) > 0
+    fun mensagemErroPerguntaAtual(): String? = when (perguntaAtual) {
+        PerguntaOcr.NOME ->
+            if (dados.nome.isBlank()) "Informe o nome do medicamento." else null
+        PerguntaOcr.CONCENTRACAO ->
+            if (dados.concentracao.isBlank() || dados.unidadeMedida.isBlank())
+                "Informe a concentração e a unidade."
+            else null
+        PerguntaOcr.TIPO_MEDICAMENTO ->
+            if (dados.tipoMedicamento.isBlank()) "Selecione a forma do medicamento." else null
+        PerguntaOcr.DOSE ->
+            if (dados.dose.isBlank() || dados.unidadeDose.isBlank())
+                "Informe a dose por tomada e a unidade."
+            else null
+        PerguntaOcr.FREQUENCIA ->
+            if (dados.frequencia.isBlank() || dados.intervaloDosagem.isBlank())
+                "Informe a frequência e o intervalo."
+            else null
+        PerguntaOcr.HORARIO_INICIAL ->
+            if (dados.horarioInicial.isBlank()) "Escolha o horário da primeira dose." else null
+        PerguntaOcr.ESTOQUE_ATUAL ->
+            if ((dados.quantidadeTotal.toIntOrNull() ?: 0) <= 0)
+                "Informe uma quantidade maior que zero."
+            else null
     }
 
     fun avancar() {
-        if (!respostaAtualValida()) {
+        val erro = mensagemErroPerguntaAtual()
+        if (erro != null) {
             mostrarErroCampo = true
+            Toast.makeText(context, erro, Toast.LENGTH_SHORT).show()
             return
         }
 
+        focusManager.clearFocus()
+        mostrarErroCampo = false
+
         if (indicePergunta < perguntasDoMedicamento.lastIndex) {
             indicePergunta++
-            mostrarErroCampo = false
         } else if (indiceMedicamento < idsSelecionados.lastIndex) {
             indiceMedicamento++
             indicePergunta = 0
-            mostrarErroCampo = false
         } else {
             viewModel.cadastrarSelecionadosOcr {
                 Toast.makeText(
@@ -188,6 +258,7 @@ fun CompletarDadosOcrScreen(
     }
 
     fun voltar() {
+        focusManager.clearFocus()
         mostrarErroCampo = false
         if (indicePergunta > 0) {
             indicePergunta--
@@ -198,8 +269,12 @@ fun CompletarDadosOcrScreen(
             indiceMedicamento--
             indicePergunta = (perguntasAnteriores.lastIndex).coerceAtLeast(0)
         } else {
-            navController.popBackStack()
+            sairDoAssistente()
         }
+    }
+
+    BackHandler {
+        voltar()
     }
 
     val progresso = (indicePergunta + 1).toFloat() / perguntasDoMedicamento.size.coerceAtLeast(1)
@@ -238,8 +313,9 @@ fun CompletarDadosOcrScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
                             .clickable { voltar() }
-                            .padding(vertical = 6.dp)
+                            .padding(horizontal = 4.dp, vertical = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -363,13 +439,13 @@ fun CompletarDadosOcrScreen(
 
                 // Card animado da pergunta atual (uma por vez)
                 AnimatedContent(
-                    targetState = Pair(indiceMedicamento, perguntaAtual),
+                    targetState = Triple(indiceMedicamento, indicePergunta, perguntaAtual),
                     transitionSpec = {
                         (slideInHorizontally { it / 2 } + fadeIn())
                             .togetherWith(slideOutHorizontally { -it / 2 } + fadeOut())
                     },
                     label = "pergunta_ocr"
-                ) { (_, pergunta) ->
+                ) { (_, _, pergunta) ->
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(24.dp),
@@ -405,9 +481,10 @@ fun CompletarDadosOcrScreen(
                                 onAbrirSeletorHora = { mostrarSeletorHora = true }
                             )
 
-                            if (mostrarErroCampo) {
+                            val erroAtual = mensagemErroPerguntaAtual()
+                            if (mostrarErroCampo && erroAtual != null) {
                                 Text(
-                                    text = "Preencha esta informação para continuar.",
+                                    text = erroAtual,
                                     color = VermelhoObrigatorio,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
@@ -761,11 +838,11 @@ private fun ConteudoPerguntaOcr(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("10", "15", "20", "30", "60").forEach { qtd ->
+                    listOf("10", "14", "20", "30", "60").forEach { qtd ->
                         FilterChip(
                             selected = dados.quantidadeTotal == qtd,
                             onClick = { onAtualizarDados(dados.copy(quantidadeTotal = qtd)) },
-                            label = { Text("$qtd un", fontSize = 13.sp) },
+                            label = { Text("$qtd ${dados.unidadeDose.ifBlank { "un" }}", fontSize = 13.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFFE1EFFB),
                                 selectedLabelColor = Color(0xFF0077D7)
@@ -783,13 +860,14 @@ private fun montarResumoParcialOcr(dados: MedicamentoRequest): String {
     if (dados.concentracao.isNotBlank()) {
         partes.add("${dados.concentracao} ${dados.unidadeMedida}".trim())
     }
+    if (dados.tipoMedicamento.isNotBlank()) {
+        partes.add(dados.tipoMedicamento)
+    }
     if (dados.dose.isNotBlank()) {
-        val rotuloTipo = dados.tipoMedicamento.ifBlank { dados.unidadeDose }.lowercase()
-        partes.add("${dados.dose} $rotuloTipo".trim())
+        partes.add("Dose: ${dados.dose} ${dados.unidadeDose}".trim())
     }
     if (dados.frequencia.isNotBlank() && dados.intervaloDosagem.isNotBlank()) {
-        val unidade = if (dados.frequencia == "1") dados.intervaloDosagem else "${dados.intervaloDosagem}s"
-        partes.add("a cada ${dados.frequencia} $unidade")
+        partes.add("A cada ${dados.frequencia} ${dados.intervaloDosagem}(s)")
     }
     return partes.joinToString(" • ")
 }

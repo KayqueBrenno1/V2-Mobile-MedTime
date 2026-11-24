@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
+import com.example.v2_medtime.data.local.TokenManager
 import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.data.remote.RetrofitClient
 import com.example.v2_medtime.data.remote.confirmouSucesso
@@ -29,6 +30,9 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 interface MedicamentoRepository {
     suspend fun listarMedicamentos(): Result<List<MedicamentoCadastrado>>
@@ -49,9 +53,11 @@ interface MedicamentoRepository {
 }
 
 class ApiMedicamentoRepository(
-    contentResolver: ContentResolver,
-    private val cacheDir: File
+    context: Context,
+    contentResolver: ContentResolver = context.contentResolver,
+    private val cacheDir: File = context.cacheDir
 ) : MedicamentoRepository {
+    private val appContext = context.applicationContext
     var idUsuario: Long = 0L
     private val api get() = RetrofitClient.api
     private val cloudinaryRepository = CloudinaryRepository(contentResolver, cacheDir)
@@ -484,45 +490,58 @@ class ApiMedicamentoRepository(
     }
 
     override suspend fun escanearReceitaOcr(imagemReceita: File) = requisitar {
-        val usuario = usuarioDaSessao()
-        require(imagemReceita.exists() && imagemReceita.length() > 0L) {
-            "Selecione uma imagem válida."
-        }
+        withContext(Dispatchers.IO) {
+            val usuario = usuarioDaSessao()
+            require(imagemReceita.exists() && imagemReceita.length() > 0L) {
+                "Selecione uma imagem válida."
+            }
 
-        val imagemEnvio = comprimirImagemReceita(imagemReceita)
-        try {
-            require(imagemEnvio.length() in 1L..(5L * 1024L * 1024L)) {
-                "Selecione uma imagem de até 5 MB."
-            }
-            val tipo = if (imagemEnvio.extension.equals("png", ignoreCase = true)) "image/png" else "image/jpeg"
-            val arquivo = MultipartBody.Part.createFormData(
-                "receita", imagemEnvio.name, imagemEnvio.asRequestBody(tipo.toMediaType())
-            )
-            val medicamentos = api.escanearReceita(usuario, arquivo)
-                .objetos("medicamentos", "Não foi possível ler a receita.")
-            val tipos = api.listarTiposDosagem().objetos("tipo_dosagem", "Não foi possível carregar os tipos de dosagem.")
-            val unidades = api.listarUnidadesMedida().objetos("unidade_medida", "Não foi possível carregar as unidades.")
-            val intervalos = api.listarTiposIntervalo().objetos("tipoIntervalo", "Não foi possível carregar os intervalos.")
-            medicamentos.map { dados ->
-                val medicamento = dados.objeto("medicamento")
-                val receita = dados.objeto("receita_medica")
-                val programacao = dados.objeto("programacao_medicamento")
-                MedicamentoRequest(
-                    nome = medicamento.texto("nome").orEmpty(),
-                    concentracao = medicamento.texto("concentracao").orEmpty().normalizarNumero(),
-                    unidadeMedida = unidades.valorPorId(medicamento.texto("id_unidade_medida_embalagem"), "sigla"),
-                    dose = receita.texto("dosagem").orEmpty().normalizarNumero(),
-                    unidadeDose = unidades.valorPorId(receita.texto("id_unidade_medida"), "sigla"),
-                    tipoMedicamento = tipos.valorPorId(medicamento.texto("id_tipo_dosagem"), "tipo_dosagem")
-                        .replaceFirstChar { it.uppercase() },
-                    descricao = receita.texto("descricao").orEmpty(),
-                    frequencia = programacao.texto("frequencia").orEmpty().normalizarNumero(),
-                    intervaloDosagem = intervalos.valorPorId(programacao.texto("id_tipo_intervalo"), "tipo_intervalo")
+            val imagemEnvio = comprimirImagemReceita(imagemReceita)
+            try {
+                require(imagemEnvio.length() in 1L..(5L * 1024L * 1024L)) {
+                    "Selecione uma imagem de até 5 MB."
+                }
+                val tipo = if (imagemEnvio.extension.equals("png", ignoreCase = true)) "image/png" else "image/jpeg"
+                val arquivo = MultipartBody.Part.createFormData(
+                    "receita", imagemEnvio.name, imagemEnvio.asRequestBody(tipo.toMediaType())
                 )
-            }
-        } finally {
-            if (imagemEnvio != imagemReceita) {
-                imagemEnvio.delete()
+
+                coroutineScope {
+                    val medicamentosDeferred = async {
+                        RetrofitClient.ocrApi.escanearReceita(usuario, arquivo)
+                            .objetos("medicamentos", "Não foi possível ler a receita.")
+                    }
+                    val tiposDeferred = async { obterTiposCached() }
+                    val unidadesDeferred = async { obterUnidadesCached() }
+                    val intervalosDeferred = async { obterIntervalosCached() }
+
+                    val medicamentos = medicamentosDeferred.await()
+                    val tipos = tiposDeferred.await()
+                    val unidades = unidadesDeferred.await()
+                    val intervalos = intervalosDeferred.await()
+
+                    medicamentos.map { dados ->
+                        val medicamento = dados.objeto("medicamento")
+                        val receita = dados.objeto("receita_medica")
+                        val programacao = dados.objeto("programacao_medicamento")
+                        MedicamentoRequest(
+                            nome = medicamento.texto("nome").orEmpty(),
+                            concentracao = medicamento.texto("concentracao").orEmpty().normalizarNumero(),
+                            unidadeMedida = unidades.valorPorId(medicamento.texto("id_unidade_medida_embalagem"), "sigla"),
+                            dose = receita.texto("dosagem").orEmpty().normalizarNumero(),
+                            unidadeDose = unidades.valorPorId(receita.texto("id_unidade_medida"), "sigla"),
+                            tipoMedicamento = tipos.valorPorId(medicamento.texto("id_tipo_dosagem"), "tipo_dosagem")
+                                .replaceFirstChar { it.uppercase() },
+                            descricao = receita.texto("descricao").orEmpty(),
+                            frequencia = programacao.texto("frequencia").orEmpty().normalizarNumero(),
+                            intervaloDosagem = intervalos.valorPorId(programacao.texto("id_tipo_intervalo"), "tipo_intervalo")
+                        )
+                    }
+                }
+            } finally {
+                if (imagemEnvio != imagemReceita) {
+                    imagemEnvio.delete()
+                }
             }
         }
     }
@@ -536,26 +555,38 @@ class ApiMedicamentoRepository(
         val maiorLado = maxOf(opcoesBounds.outWidth, opcoesBounds.outHeight)
         if (maiorLado <= 0) return arquivoOriginal
 
+        val ladoMaximoAlvo = 1280
         var inSampleSize = 1
-        while (maiorLado / inSampleSize > 1800) {
+        while (maiorLado / (inSampleSize * 2) >= ladoMaximoAlvo) {
             inSampleSize *= 2
         }
 
-        val opcoesDecode = BitmapFactory.Options().apply {
-            this.inSampleSize = inSampleSize
+        val bitmapDecodificado = BitmapFactory.decodeFile(
+            arquivoOriginal.absolutePath,
+            BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
+        ) ?: return arquivoOriginal
+
+        val ladoAtual = maxOf(bitmapDecodificado.width, bitmapDecodificado.height)
+        val bitmapFinal = if (ladoAtual > ladoMaximoAlvo) {
+            val escala = ladoMaximoAlvo.toFloat() / ladoAtual
+            val novaLargura = (bitmapDecodificado.width * escala).toInt().coerceAtLeast(1)
+            val novaAltura = (bitmapDecodificado.height * escala).toInt().coerceAtLeast(1)
+            Bitmap.createScaledBitmap(bitmapDecodificado, novaLargura, novaAltura, true).also {
+                if (it != bitmapDecodificado) bitmapDecodificado.recycle()
+            }
+        } else {
+            bitmapDecodificado
         }
-        val bitmap = BitmapFactory.decodeFile(arquivoOriginal.absolutePath, opcoesDecode)
-            ?: return arquivoOriginal
 
         return try {
             val arquivoComprimido = File(cacheDir, "receita_comprimida_${System.currentTimeMillis()}.jpg")
-            var qualidade = 85
+            var qualidade = 78
             do {
                 arquivoComprimido.outputStream().use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, qualidade, out)
+                    bitmapFinal.compress(Bitmap.CompressFormat.JPEG, qualidade, out)
                 }
                 qualidade -= 10
-            } while (arquivoComprimido.length() > 950 * 1024 && qualidade >= 75)
+            } while (arquivoComprimido.length() > 350 * 1024 && qualidade >= 58)
 
             if (arquivoComprimido.exists() && arquivoComprimido.length() > 0L) {
                 arquivoComprimido
@@ -565,7 +596,7 @@ class ApiMedicamentoRepository(
         } catch (_: Exception) {
             arquivoOriginal
         } finally {
-            bitmap.recycle()
+            bitmapFinal.recycle()
         }
     }
 
@@ -630,8 +661,15 @@ class ApiMedicamentoRepository(
         }
     }
 
-    private fun usuarioDaSessao(): Long =
-        idUsuario.takeIf { it > 0L } ?: error("Entre novamente para acessar seus medicamentos.")
+    private fun usuarioDaSessao(): Long {
+        if (idUsuario > 0L) return idUsuario
+        val idSalvo = TokenManager(appContext).obterSessao()?.idUsuario ?: 0L
+        if (idSalvo > 0L) {
+            idUsuario = idSalvo
+            return idSalvo
+        }
+        error("Entre novamente para acessar seus medicamentos.")
+    }
 }
 
 internal fun Response<JsonObject>.exigirSucesso(mensagem: String) {

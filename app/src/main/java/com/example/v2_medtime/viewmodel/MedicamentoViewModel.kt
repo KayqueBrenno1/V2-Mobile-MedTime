@@ -44,7 +44,7 @@ class MedicamentoViewModel(
 
     constructor(application: Application) : this(
         application,
-        ApiMedicamentoRepository(application.contentResolver, application.cacheDir)
+        ApiMedicamentoRepository(application)
     )
 
     var ultimoMedicamento by mutableStateOf<MedicamentoCadastrado?>(null)
