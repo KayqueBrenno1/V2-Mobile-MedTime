@@ -1,37 +1,33 @@
 package com.example.v2_medtime.viewmodel
 
-import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.v2_medtime.data.remote.confirmouSucesso
+import com.example.v2_medtime.data.remote.mensagemDeErro
+import com.example.v2_medtime.data.remote.texto
 import com.example.v2_medtime.data.repository.VinculoRepository
-import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
 import com.example.v2_medtime.screens.PacienteVinculado
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
-import retrofit2.Response
 
 data class CuidadorVinculado(
     val id: Int,
+    val idPaciente: Long = 0L,
     val nome: String,
-    val email: String = "",
+    val email: String? = null,
     val fotoUrl: String? = null
 )
 
-class VinculoViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repositorio = VinculoRepository()
+class VinculoViewModel(
+    private val repositorio: VinculoRepository = VinculoRepository()
+) : ViewModel() {
 
     var carregando by mutableStateOf(false)
-        private set
-
-    var carregandoPacientes by mutableStateOf(false)
         private set
 
     var pacientes by mutableStateOf<List<PacienteVinculado>>(emptyList())
@@ -40,91 +36,11 @@ class VinculoViewModel(application: Application) : AndroidViewModel(application)
     var meuCuidador by mutableStateOf<CuidadorVinculado?>(null)
         private set
 
-    var erroCodigoVinculo by mutableStateOf<String?>(null)
-        private set
-
-    var cuidadorVinculado by mutableStateOf<CuidadorVinculado?>(null)
-        private set
-
-    fun limparErroCodigoVinculo() {
-        erroCodigoVinculo = null
-    }
-
     fun limparSessao() {
         viewModelScope.coroutineContext.cancelChildren()
         pacientes = emptyList()
-        cuidadorVinculado = null
+        meuCuidador = null
         carregando = false
-    }
-
-    fun gerarCodigo(onSucesso: (String) -> Unit, onErro: (String) -> Unit) {
-        executar(onErro) {
-            val resposta = repositorio.gerarCodigo()
-            val codigo = resposta.body()?.getAsJsonObject("response")?.get("codigo")?.asString
-
-            if (confirmouSucesso(resposta) && codigo != null && codigo.matches(Regex("[0-9]{6}"))) {
-                onSucesso(codigo)
-            } else {
-                onErro(mensagemErro(resposta, "Não foi possível gerar o código de vínculo."))
-            }
-        }
-    }
-
-    fun validarCodigo(codigo: String, onSucesso: () -> Unit, onErro: (String) -> Unit = {}) {
-        erroCodigoVinculo = null
-        executar({ mensagem ->
-            erroCodigoVinculo = mensagem
-            onErro(mensagem)
-        }) {
-            val resposta = repositorio.validarCodigo(codigo)
-            if (confirmouSucesso(resposta)) {
-                erroCodigoVinculo = null
-                VerificacaoPeriodicaWorker.executarAgora(getApplication())
-                onSucesso()
-            } else {
-                val mensagem = mensagemErro(resposta, "Código inválido ou expirado.")
-                erroCodigoVinculo = mensagem
-                onErro(mensagem)
-            }
-        }
-    }
-
-    fun carregarPacientes(onErro: (String) -> Unit) {
-        if (carregandoPacientes) return
-
-        viewModelScope.launch {
-            carregandoPacientes = true
-            try {
-                val resposta = repositorio.listarPacientes()
-
-                when {
-                    resposta.code() == 404 -> {
-                        pacientes = emptyList()
-                    }
-                    confirmouSucesso(resposta) -> {
-                        val vinculos = resposta.body()?.getAsJsonObject("response")
-                            ?.getAsJsonArray("vinculo_paciente")
-                        pacientes = vinculos?.mapNotNull { registro ->
-                            val dados = registro.asJsonObject
-                            val idPaciente = dados.get("id_paciente")?.asInt ?: return@mapNotNull null
-                            PacienteVinculado(
-                                id = idPaciente,
-                                nome = dados.get("nome")?.takeUnless { it.isJsonNull }?.asString
-                                    ?: "Paciente #$idPaciente",
-                                fotoUrl = dados.get("foto")?.takeUnless { it.isJsonNull }?.asString
-                            )
-                        }.orEmpty().distinctBy { it.id }
-                    }
-                    else -> onErro(mensagemErro(resposta, "Não foi possível carregar os pacientes."))
-                }
-            } catch (cancelamento: CancellationException) {
-                throw cancelamento
-            } catch (_: Exception) {
-                onErro("Não foi possível carregar os pacientes.")
-            } finally {
-                carregandoPacientes = false
-            }
-        }
     }
 
     fun carregarMeuCuidador(onErro: (String) -> Unit = {}) {
@@ -132,42 +48,125 @@ class VinculoViewModel(application: Application) : AndroidViewModel(application)
             val resposta = repositorio.buscarMeuCuidador()
             when {
                 resposta.code() == 404 -> {
-                    cuidadorVinculado = null
+                    meuCuidador = null
                 }
-                confirmouSucesso(resposta) -> {
-                    val dados = resposta.body()?.getAsJsonObject("response")
-                        ?.getAsJsonArray("vinculo_paciente")
-                        ?.firstOrNull()
-                        ?.asJsonObject
 
-                    val idCuidador = dados?.get("id_cuidador")?.takeUnless { it.isJsonNull }?.asInt
-                    if (dados != null && idCuidador != null) {
-                        val nome = listOf("nome_cuidador", "nome")
-                            .firstNotNullOfOrNull { chave ->
-                                dados.get(chave)?.takeUnless { it.isJsonNull }?.asString?.takeIf { it.isNotBlank() }
-                            } ?: "Cuidador #$idCuidador"
+                resposta.confirmouSucesso() -> {
+                    val responseObj = resposta.body()?.getAsJsonObject("response")
+                    val vinculoElement = responseObj?.get("vinculo_paciente")
 
-                        val email = listOf("email_cuidador", "email")
-                            .firstNotNullOfOrNull { chave ->
-                                dados.get(chave)?.takeUnless { it.isJsonNull }?.asString?.takeIf { it.isNotBlank() }
-                            }.orEmpty()
+                    val dados: JsonObject? = when {
+                        vinculoElement != null && vinculoElement.isJsonArray ->
+                            vinculoElement.asJsonArray.firstOrNull()?.takeIf { it.isJsonObject }?.asJsonObject
+                        vinculoElement != null && vinculoElement.isJsonObject ->
+                            vinculoElement.asJsonObject
+                        else -> null
+                    }
 
-                        val foto = listOf("foto_cuidador", "foto")
-                            .firstNotNullOfOrNull { chave ->
-                                dados.get(chave)?.takeUnless { it.isJsonNull }?.asString?.takeIf { it.isNotBlank() }
-                            }
+                    if (dados != null) {
+                        val idCuidador = dados.texto("id_cuidador")?.toIntOrNull()
+                            ?: dados.texto("id")?.toIntOrNull()
+                            ?: 0
+                        val idPaciente = dados.texto("id_paciente")?.toLongOrNull() ?: 0L
+                        val nome = dados.texto("nome_cuidador")
+                            ?.takeIf { it.isNotBlank() }
+                            ?: dados.texto("nome")?.takeIf { it.isNotBlank() }
+                            ?: "Cuidador"
+                        val email = dados.texto("email_cuidador")
+                            ?.takeIf { it.isNotBlank() }
+                            ?: dados.texto("email")?.takeIf { it.isNotBlank() }
+                        val foto = dados.texto("foto_cuidador")
+                            ?.takeIf { it.isNotBlank() }
+                            ?: dados.texto("foto")?.takeIf { it.isNotBlank() }
 
-                        cuidadorVinculado = CuidadorVinculado(
+                        meuCuidador = CuidadorVinculado(
                             id = idCuidador,
+                            idPaciente = idPaciente,
                             nome = nome,
                             email = email,
                             fotoUrl = foto
                         )
                     } else {
-                        cuidadorVinculado = null
+                        meuCuidador = null
                     }
                 }
-                else -> onErro(mensagemErro(resposta, "Não foi possível carregar os dados do cuidador."))
+
+                else -> {
+                    onErro(resposta.mensagemDeErro("Não foi possível carregar os dados do cuidador."))
+                }
+            }
+        }
+    }
+
+    fun carregarPacientes(onErro: (String) -> Unit = {}) {
+        executar(onErro) {
+            val resposta = repositorio.listarPacientes()
+            when {
+                resposta.code() == 404 -> {
+                    pacientes = emptyList()
+                }
+
+                resposta.confirmouSucesso() -> {
+                    val lista = resposta.body()?.getAsJsonObject("response")
+                        ?.getAsJsonArray("vinculo_paciente")
+                        ?.mapNotNull { elem ->
+                            val obj = elem.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                            val id = obj.texto("id_paciente")?.toIntOrNull() ?: return@mapNotNull null
+                            val nome = obj.texto("nome_paciente")
+                                ?.takeIf { it.isNotBlank() }
+                                ?: obj.texto("nome")?.takeIf { it.isNotBlank() }
+                                ?: "Paciente #$id"
+                            val foto = obj.texto("foto_paciente")
+                                ?.takeIf { it.isNotBlank() }
+                                ?: obj.texto("foto")?.takeIf { it.isNotBlank() }
+
+                            PacienteVinculado(
+                                id = id,
+                                nome = nome,
+                                fotoUrl = foto
+                            )
+                        }.orEmpty()
+
+                    pacientes = lista
+                }
+
+                else -> {
+                    onErro(resposta.mensagemDeErro("Não foi possível carregar os pacientes."))
+                }
+            }
+        }
+    }
+
+    fun gerarCodigo(
+        onSucesso: (String) -> Unit,
+        onErro: (String) -> Unit
+    ) {
+        executar(onErro) {
+            val resposta = repositorio.gerarCodigo()
+            if (resposta.confirmouSucesso()) {
+                val codigo = resposta.body()?.getAsJsonObject("response")?.texto("codigo").orEmpty()
+                if (codigo.isNotBlank()) {
+                    onSucesso(codigo)
+                } else {
+                    onErro("Código não retornado pelo servidor.")
+                }
+            } else {
+                onErro(resposta.mensagemDeErro("Não foi possível gerar o código de vínculo."))
+            }
+        }
+    }
+
+    fun validarCodigo(
+        codigo: String,
+        onSucesso: () -> Unit,
+        onErro: (String) -> Unit
+    ) {
+        executar(onErro) {
+            val resposta = repositorio.validarCodigo(codigo)
+            if (resposta.confirmouSucesso()) {
+                onSucesso()
+            } else {
+                onErro(resposta.mensagemDeErro("Código inválido ou expirado."))
             }
         }
     }
@@ -177,10 +176,11 @@ class VinculoViewModel(application: Application) : AndroidViewModel(application)
         onSucesso: () -> Unit,
         onErro: (String) -> Unit
     ) {
+        val pacienteId = idPaciente.takeIf { it > 0L } ?: meuCuidador?.idPaciente ?: 0L
         executar(onErro) {
-            repositorio.encerrarVinculo(idPaciente)
+            repositorio.encerrarVinculo(pacienteId)
                 .onSuccess {
-                    cuidadorVinculado = null
+                    meuCuidador = null
                     onSucesso()
                 }
                 .onFailure { erro ->
@@ -189,45 +189,21 @@ class VinculoViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun extrairObjetoCuidador(response: JsonObject?): JsonObject? {
-        if (response == null) return null
-        val chavesPossiveis = listOf("meu_cuidador", "cuidador", "vinculo_paciente", "vinculo")
-        for (chave in chavesPossiveis) {
-            val elemento: JsonElement = response.get(chave) ?: continue
-            if (elemento.isJsonObject) return elemento.asJsonObject
-            if (elemento.isJsonArray && elemento.asJsonArray.size() > 0) {
-                val primeiro = elemento.asJsonArray[0]
-                if (primeiro.isJsonObject) return primeiro.asJsonObject
-            }
-        }
-        return if (response.has("nome") || response.has("id_cuidador")) response else null
-    }
-
-    private fun executar(onErro: (String) -> Unit, acao: suspend () -> Unit) {
-        if (carregando) return
-
+    private fun executar(
+        onErro: (String) -> Unit,
+        bloco: suspend () -> Unit
+    ) {
         viewModelScope.launch {
             carregando = true
             try {
-                acao()
+                bloco()
             } catch (cancelamento: CancellationException) {
                 throw cancelamento
-            } catch (_: Exception) {
-                onErro("Não foi possível concluir a solicitação de vínculo.")
+            } catch (erro: Exception) {
+                onErro(erro.message ?: "Erro de comunicação com o servidor.")
             } finally {
                 carregando = false
             }
         }
-    }
-
-    private fun confirmouSucesso(resposta: Response<JsonObject>): Boolean =
-        resposta.isSuccessful && resposta.body()?.get("status")?.asBoolean == true
-
-    private fun mensagemErro(resposta: Response<JsonObject>, mensagemPadrao: String): String {
-        val corpo = resposta.errorBody()?.string()
-        return runCatching {
-            val dados = corpo?.let { JsonParser.parseString(it).asJsonObject } ?: resposta.body()
-            dados?.get("message")?.asString
-        }.getOrNull() ?: mensagemPadrao
     }
 }

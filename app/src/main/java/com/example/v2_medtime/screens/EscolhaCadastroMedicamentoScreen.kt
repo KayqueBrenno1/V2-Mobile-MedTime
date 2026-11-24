@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,12 +47,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import com.example.v2_medtime.R
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 import java.io.File
@@ -75,24 +78,17 @@ fun EscolhaCadastroMedicamentoScreen(
     val textoEscuro = Color(0xFF0F172A)
     val textoSecundario = Color(0xFF5A657D)
 
-    // Prepara arquivo temporário e URI para captura da receita via câmera
-    val receitaFile = remember {
-        File(context.cacheDir, "receita_ocr_${System.currentTimeMillis()}.jpg")
-    }
-    val receitaUri = remember {
-        FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            receitaFile
-        )
-    }
+    var caminhoReceitaAtual by rememberSaveable { mutableStateOf<String?>(null) }
 
     val cameraOcrLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { sucesso ->
-            if (sucesso && receitaFile.exists()) {
+            val arquivo = caminhoReceitaAtual?.let(::File)
+            caminhoReceitaAtual = null
+
+            if (sucesso && arquivo != null && arquivo.exists() && arquivo.length() > 0L) {
                 viewModel.processarReceitaOcr(
-                    imagemReceita = receitaFile,
+                    imagemReceita = arquivo,
                     limparAnteriores = true
                 ) {
                     if (viewModel.remediosIdentificadosOcr.isNotEmpty()) {
@@ -105,6 +101,8 @@ fun EscolhaCadastroMedicamentoScreen(
                         ).show()
                     }
                 }
+            } else {
+                arquivo?.delete()
             }
         }
     )
@@ -247,7 +245,17 @@ fun EscolhaCadastroMedicamentoScreen(
                         }
 
                         ModoCadastro.OCR -> {
-                            cameraOcrLauncher.launch(receitaUri)
+                            val arquivo = File(
+                                context.cacheDir,
+                                "receita_ocr_${System.currentTimeMillis()}.jpg"
+                            )
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                arquivo
+                            )
+                            caminhoReceitaAtual = arquivo.absolutePath
+                            cameraOcrLauncher.launch(uri)
                         }
                     }
                 },
@@ -268,7 +276,7 @@ fun EscolhaCadastroMedicamentoScreen(
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Analisando receita...",
-                        color = Color.White,
+                        color = colorResource(R.color.azul_texto),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -282,29 +290,6 @@ fun EscolhaCadastroMedicamentoScreen(
                 }
             }
         }
-
-        // Modal de Revisão dos Medicamentos Retornados pelo OCR + IA
-        val cameraOcrLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.TakePicture(),
-            onResult = { sucesso ->
-                if (sucesso && receitaFile.exists()) {
-                    viewModel.processarReceitaOcr(
-                        imagemReceita = receitaFile,
-                        limparAnteriores = true
-                    ) {
-                        if (viewModel.remediosIdentificadosOcr.isNotEmpty()) {
-                            navController.navigate("medicamentos_identificados")
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Nenhum medicamento identificado na receita.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                }
-            }
-        )
     }
 }
 

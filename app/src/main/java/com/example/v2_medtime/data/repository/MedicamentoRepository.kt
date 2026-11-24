@@ -1,6 +1,8 @@
 package com.example.v2_medtime.data.repository
 
 import android.content.ContentResolver
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import com.example.v2_medtime.data.model.MedicamentoRequest
@@ -177,6 +179,9 @@ class ApiMedicamentoRepository(
         @Volatile private var cacheUnidades: List<JsonObject>? = null
         @Volatile private var cacheTipos: List<JsonObject>? = null
         @Volatile private var cacheIntervalos: List<JsonObject>? = null
+
+        const val IMAGEM_PADRAO_URL =
+            "https://res.cloudinary.com/dl5pjsesc/image/upload/v1/medtime/ic_medicamento_padrao.png"
     }
 
     private suspend fun obterUnidadesCached(): List<JsonObject> =
@@ -280,9 +285,9 @@ class ApiMedicamentoRepository(
                         .ifBlank { progAgenda?.horarioInicial.orEmpty() }
                         .ifBlank { progCache?.horarioInicial.orEmpty() }
 
-                    val imagem = dados.valor("imagem")
+                    val imagem = (dados.valor("imagem")
                         ?: medicamento.valor("imagem")
-                        ?: ""
+                        ?: "").ifBlank { IMAGEM_PADRAO_URL }
 
                     val quantidadeAtualTexto = (dados.valor("quantidade_em_estoque", "quantidade")
                         ?: estoque.valor("quantidade_em_estoque", "quantidade")
@@ -383,7 +388,7 @@ class ApiMedicamentoRepository(
                 cloudinaryRepository.uploadImage(it).getOrThrow()
             } ?: imagemUriLocal?.let {
                 cloudinaryRepository.uploadImage(it).getOrThrow()
-            } ?: request.imagemRemota
+            } ?: request.imagemRemota.ifBlank { IMAGEM_PADRAO_URL }
 
             val requestComImagem = request.copy(imagemRemota = imagemUrl)
             val dados = prepararMedicamento(requestComImagem, criando = true)
@@ -433,11 +438,16 @@ class ApiMedicamentoRepository(
         imagemUriLocal: Uri?
     ) = requisitar {
         val usuario = usuarioDaSessao()
-        val imagemUrl = imagemFile?.let { cloudinaryRepository.uploadImage(it).getOrThrow() }
-            ?: imagemUriLocal?.let { cloudinaryRepository.uploadImage(it).getOrThrow() }
-            ?: request.imagemRemota
+
+        val imagemUrl = imagemFile?.let {
+            cloudinaryRepository.uploadImage(it).getOrThrow()
+        } ?: imagemUriLocal?.let {
+            cloudinaryRepository.uploadImage(it).getOrThrow()
+        } ?: request.imagemRemota.ifBlank { IMAGEM_PADRAO_URL }
+
         val requestComImagem = request.copy(imagemRemota = imagemUrl)
         val dados = prepararMedicamento(requestComImagem, criando = false)
+
         api.editarMedicamento(id, usuario, dados).exigirSucesso("Não foi possível atualizar o medicamento.")
         salvarProgramacaoCache(id, requestComImagem)
         requestComImagem.quantidadeTotal.toIntOrNull()?.let { novaQtd ->
@@ -475,34 +485,87 @@ class ApiMedicamentoRepository(
 
     override suspend fun escanearReceitaOcr(imagemReceita: File) = requisitar {
         val usuario = usuarioDaSessao()
-        require(imagemReceita.length() in 1L..(5L * 1024L * 1024L)) {
-            "Selecione uma imagem de até 5 MB."
+        require(imagemReceita.exists() && imagemReceita.length() > 0L) {
+            "Selecione uma imagem válida."
         }
-        val tipo = if (imagemReceita.extension.equals("png", ignoreCase = true)) "image/png" else "image/jpeg"
-        val arquivo = MultipartBody.Part.createFormData(
-            "receita", imagemReceita.name, imagemReceita.asRequestBody(tipo.toMediaType())
-        )
-        val medicamentos = api.escanearReceita(usuario, arquivo)
-            .objetos("medicamentos", "Não foi possível ler a receita.")
-        val tipos = api.listarTiposDosagem().objetos("tipo_dosagem", "Não foi possível carregar os tipos de dosagem.")
-        val unidades = api.listarUnidadesMedida().objetos("unidade_medida", "Não foi possível carregar as unidades.")
-        val intervalos = api.listarTiposIntervalo().objetos("tipoIntervalo", "Não foi possível carregar os intervalos.")
-        medicamentos.map { dados ->
-            val medicamento = dados.getAsJsonObject("medicamento")
-            val receita = dados.getAsJsonObject("receita_medica")
-            val programacao = dados.getAsJsonObject("programacao_medicamento")
-            MedicamentoRequest(
-                nome = medicamento.texto("nome").orEmpty(),
-                concentracao = medicamento.texto("concentracao").orEmpty(),
-                unidadeMedida = unidades.valorPorId(medicamento.texto("id_unidade_medida_embalagem"), "sigla"),
-                dose = receita.texto("dosagem").orEmpty(),
-                unidadeDose = unidades.valorPorId(receita.texto("id_unidade_medida"), "sigla"),
-                tipoMedicamento = tipos.valorPorId(medicamento.texto("id_tipo_dosagem"), "tipo_dosagem")
-                    .replaceFirstChar { it.uppercase() },
-                descricao = receita.texto("descricao").orEmpty(),
-                frequencia = programacao.texto("frequencia").orEmpty(),
-                intervaloDosagem = intervalos.valorPorId(programacao.texto("id_tipo_intervalo"), "tipo_intervalo")
+
+        val imagemEnvio = comprimirImagemReceita(imagemReceita)
+        try {
+            require(imagemEnvio.length() in 1L..(5L * 1024L * 1024L)) {
+                "Selecione uma imagem de até 5 MB."
+            }
+            val tipo = if (imagemEnvio.extension.equals("png", ignoreCase = true)) "image/png" else "image/jpeg"
+            val arquivo = MultipartBody.Part.createFormData(
+                "receita", imagemEnvio.name, imagemEnvio.asRequestBody(tipo.toMediaType())
             )
+            val medicamentos = api.escanearReceita(usuario, arquivo)
+                .objetos("medicamentos", "Não foi possível ler a receita.")
+            val tipos = api.listarTiposDosagem().objetos("tipo_dosagem", "Não foi possível carregar os tipos de dosagem.")
+            val unidades = api.listarUnidadesMedida().objetos("unidade_medida", "Não foi possível carregar as unidades.")
+            val intervalos = api.listarTiposIntervalo().objetos("tipoIntervalo", "Não foi possível carregar os intervalos.")
+            medicamentos.map { dados ->
+                val medicamento = dados.objeto("medicamento")
+                val receita = dados.objeto("receita_medica")
+                val programacao = dados.objeto("programacao_medicamento")
+                MedicamentoRequest(
+                    nome = medicamento.texto("nome").orEmpty(),
+                    concentracao = medicamento.texto("concentracao").orEmpty().normalizarNumero(),
+                    unidadeMedida = unidades.valorPorId(medicamento.texto("id_unidade_medida_embalagem"), "sigla"),
+                    dose = receita.texto("dosagem").orEmpty().normalizarNumero(),
+                    unidadeDose = unidades.valorPorId(receita.texto("id_unidade_medida"), "sigla"),
+                    tipoMedicamento = tipos.valorPorId(medicamento.texto("id_tipo_dosagem"), "tipo_dosagem")
+                        .replaceFirstChar { it.uppercase() },
+                    descricao = receita.texto("descricao").orEmpty(),
+                    frequencia = programacao.texto("frequencia").orEmpty().normalizarNumero(),
+                    intervaloDosagem = intervalos.valorPorId(programacao.texto("id_tipo_intervalo"), "tipo_intervalo")
+                )
+            }
+        } finally {
+            if (imagemEnvio != imagemReceita) {
+                imagemEnvio.delete()
+            }
+        }
+    }
+
+    private fun comprimirImagemReceita(arquivoOriginal: File): File {
+        val opcoesBounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeFile(arquivoOriginal.absolutePath, opcoesBounds)
+
+        val maiorLado = maxOf(opcoesBounds.outWidth, opcoesBounds.outHeight)
+        if (maiorLado <= 0) return arquivoOriginal
+
+        var inSampleSize = 1
+        while (maiorLado / inSampleSize > 1800) {
+            inSampleSize *= 2
+        }
+
+        val opcoesDecode = BitmapFactory.Options().apply {
+            this.inSampleSize = inSampleSize
+        }
+        val bitmap = BitmapFactory.decodeFile(arquivoOriginal.absolutePath, opcoesDecode)
+            ?: return arquivoOriginal
+
+        return try {
+            val arquivoComprimido = File(cacheDir, "receita_comprimida_${System.currentTimeMillis()}.jpg")
+            var qualidade = 85
+            do {
+                arquivoComprimido.outputStream().use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, qualidade, out)
+                }
+                qualidade -= 10
+            } while (arquivoComprimido.length() > 950 * 1024 && qualidade >= 75)
+
+            if (arquivoComprimido.exists() && arquivoComprimido.length() > 0L) {
+                arquivoComprimido
+            } else {
+                arquivoOriginal
+            }
+        } catch (_: Exception) {
+            arquivoOriginal
+        } finally {
+            bitmap.recycle()
         }
     }
 

@@ -2,6 +2,7 @@ package com.example.v2_medtime.data.repository
 
 import com.example.v2_medtime.data.remote.RetrofitClient
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import retrofit2.Response
 
 class VinculoRepository {
@@ -24,7 +25,18 @@ class VinculoRepository {
 
     suspend fun encerrarVinculo(idPaciente: Long): Result<Unit> = requisitar {
         require(idPaciente > 0L) { "Paciente inválido para encerrar o vínculo." }
-        api.encerrarVinculoPaciente(idPaciente)
-            .exigirSucesso("Não foi possível encerrar o vínculo.")
+        val resposta = api.encerrarVinculoPaciente(idPaciente)
+        if (!resposta.isSuccessful) {
+            val erroBruto = resposta.errorBody()?.string().orEmpty()
+            val mensagem = runCatching {
+                JsonParser.parseString(erroBruto)
+                    .asJsonObject
+                    .get("message")
+                    ?.takeUnless { it.isJsonNull }
+                    ?.asString
+                    ?.takeIf { it.isNotBlank() }
+            }.getOrNull() ?: "Não foi possível encerrar o vínculo."
+            error(mensagem)
+        }
     }
 }

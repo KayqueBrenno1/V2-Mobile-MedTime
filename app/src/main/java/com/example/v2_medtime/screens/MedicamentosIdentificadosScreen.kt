@@ -44,7 +44,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import com.example.v2_medtime.data.model.obterPerguntasPendentes
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.viewmodel.ItemOcrIdentificado
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
@@ -76,25 +81,18 @@ fun MedicamentosIdentificadosScreen(
 
     val totalSelecionados = viewModel.remediosIdentificadosOcr.count { it.selecionado }
 
-    // Câmera para capturar receitas adicionais (2ª, 3ª receita...)
-    val receitaAdicionalFile = remember {
-        File(context.cacheDir, "receita_extra_${System.currentTimeMillis()}.jpg")
-    }
-    val receitaAdicionalUri = remember {
-        FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            receitaAdicionalFile
-        )
-    }
+    var caminhoReceitaExtra by rememberSaveable { mutableStateOf<String?>(null) }
 
     val cameraExtraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { sucesso ->
-            if (sucesso && receitaAdicionalFile.exists()) {
+            val arquivo = caminhoReceitaExtra?.let(::File)
+            caminhoReceitaExtra = null
+
+            if (sucesso && arquivo != null && arquivo.exists() && arquivo.length() > 0L) {
                 viewModel.processarReceitaOcr(
-                    imagemReceita = receitaAdicionalFile,
-                    limparAnteriores = false // Acumula com os já identificados
+                    imagemReceita = arquivo,
+                    limparAnteriores = false
                 ) {
                     Toast.makeText(
                         context,
@@ -102,6 +100,8 @@ fun MedicamentosIdentificadosScreen(
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+            } else {
+                arquivo?.delete()
             }
         }
     )
@@ -225,17 +225,25 @@ fun MedicamentosIdentificadosScreen(
                 // Botão 1: + Cadastrar selecionados (N)
                 Button(
                     onClick = {
-                        viewModel.cadastrarSelecionadosOcr {
-                            Toast.makeText(
-                                context,
-                                "$totalSelecionados medicamento(s) cadastrado(s)!",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            if (!navController.popBackStack("abas_principais", inclusive = false)) {
-                                navController.popBackStack("visao_paciente/{pacienteId}", inclusive = false)
+                        val selecionados = viewModel.remediosIdentificadosOcr.filter { it.selecionado }
+                        val temPendencias = selecionados.any { it.dados.obterPerguntasPendentes().isNotEmpty() }
+
+                        if (temPendencias) {
+                            navController.navigate("completar_dados_ocr")
+                        } else {
+                            viewModel.cadastrarSelecionadosOcr {
+                                Toast.makeText(
+                                    context,
+                                    "$totalSelecionados medicamento(s) cadastrado(s)!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                if (!navController.popBackStack("abas_principais", inclusive = false)) {
+                                    navController.popBackStack("visao_paciente/{pacienteId}", inclusive = false)
+                                }
                             }
                         }
                     },
+                    // ... mantém o restante igual
                     enabled = totalSelecionados > 0 && !viewModel.isLoading && !viewModel.isEscaneandoOcr,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -268,7 +276,19 @@ fun MedicamentosIdentificadosScreen(
 
                 // Botão 2: Adicionar outro medicamento (Escanear outra receita)
                 OutlinedButton(
-                    onClick = { cameraExtraLauncher.launch(receitaAdicionalUri) },
+                    onClick = {
+                        val arquivo = File(
+                            context.cacheDir,
+                            "receita_extra_${System.currentTimeMillis()}.jpg"
+                        )
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            arquivo
+                        )
+                        caminhoReceitaExtra = arquivo.absolutePath
+                        cameraExtraLauncher.launch(uri)
+                    },
                     enabled = !viewModel.isEscaneandoOcr && !viewModel.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -329,7 +349,24 @@ private fun MedicamentoOcrCard(
         "mês" -> if (dados.frequencia == "1") "mês" else "meses"
         else -> if (dados.frequencia == "1") dados.intervaloDosagem else "${dados.intervaloDosagem}s"
     }
-    val subtitulo = "${dados.concentracao} ${dados.unidadeMedida} • ${dados.dose} ${dados.tipoMedicamento.lowercase()} de ${dados.frequencia} em ${dados.frequencia} $pluralUnidade"
+    val pendencias = dados.obterPerguntasPendentes().size
+    val partesSubtitulo = buildList {
+        if (dados.concentracao.isNotBlank()) {
+            add("${dados.concentracao} ${dados.unidadeMedida}".trim())
+        }
+        if (dados.dose.isNotBlank()) {
+            val tipo = dados.tipoMedicamento.ifBlank { dados.unidadeDose }.lowercase()
+            add("${dados.dose} $tipo".trim())
+        }
+        if (dados.frequencia.isNotBlank() && dados.intervaloDosagem.isNotBlank()) {
+            val pluralUnidade = when (dados.intervaloDosagem.lowercase()) {
+                "mês" -> if (dados.frequencia == "1") "mês" else "meses"
+                else -> if (dados.frequencia == "1") dados.intervaloDosagem else "${dados.intervaloDosagem}s"
+            }
+            add("de ${dados.frequencia} em ${dados.frequencia} $pluralUnidade")
+        }
+    }
+    val subtitulo = partesSubtitulo.joinToString(" • ").ifBlank { "Toque em continuar para completar os dados" }
 
     Surface(
         modifier = Modifier
@@ -385,6 +422,16 @@ private fun MedicamentoOcrCard(
                     fontSize = 13.sp,
                     lineHeight = 17.sp
                 )
+                if (pendencias > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (pendencias == 1) "Falta 1 informação para confirmar"
+                        else "Faltam $pendencias informações para confirmar",
+                        color = Color(0xFF1592D0),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             IconButton(onClick = onEditarClick) {

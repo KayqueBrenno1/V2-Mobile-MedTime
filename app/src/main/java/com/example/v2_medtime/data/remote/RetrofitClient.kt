@@ -11,9 +11,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-
-    private const val BASE_URL = "https://medtime-backend.onrender.com/"
-
+    private const val BASE_URL = "https://medtime-backend.onrender.com"
     private lateinit var applicationContext: Context
 
     fun inicializar(context: Context) {

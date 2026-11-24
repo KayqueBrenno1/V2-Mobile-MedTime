@@ -57,6 +57,7 @@ import com.example.v2_medtime.viewmodel.VinculoViewModel
 fun MeuCuidadorScreen(
     navController: NavController,
     vinculoViewModel: VinculoViewModel,
+    idPaciente: Long = 0L,
     onErro: (String) -> Unit = {},
     onSucesso: (String) -> Unit = {},
     modifier: Modifier = Modifier
@@ -348,6 +349,7 @@ fun MeuCuidadorScreen(
                         onClick = {
                             mostrarDialogoEncerrar = false
                             vinculoViewModel.encerrarVinculo(
+                                idPaciente = idPaciente,
                                 onSucesso = {
                                     onSucesso("Vínculo encerrado com sucesso.")
                                 },

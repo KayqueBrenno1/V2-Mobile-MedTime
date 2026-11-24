@@ -1,6 +1,7 @@
 package com.example.v2_medtime.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,10 +30,12 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,11 +48,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.v2_medtime.R
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.screens.components.DetalheInfoCard
 import com.example.v2_medtime.screens.components.gerarHorariosDoDia
@@ -64,14 +73,14 @@ fun DetalhesMedicamentoScreen(
 ) {
     val context = LocalContext.current
 
-    androidx.compose.runtime.LaunchedEffect(medicamentoId) {
+    LaunchedEffect(medicamentoId) {
         viewModel.recarregarMedicamento(medicamentoId)
     }
 
     val item = viewModel.buscarPorId(medicamentoId)
 
     if (item == null) {
-        androidx.compose.runtime.LaunchedEffect(medicamentoId) {
+        LaunchedEffect(medicamentoId) {
             if (navController.previousBackStackEntry != null) {
                 navController.popBackStack()
             } else {
@@ -221,7 +230,6 @@ fun DetalhesMedicamentoScreen(
                     valor = textoHorarios
                 )
 
-                // Abre direto a tela de controle de Estoque
                 DetalheInfoCard(
                     icon = Icons.Outlined.Inventory2,
                     titulo = "Estoque",
@@ -241,7 +249,6 @@ fun DetalhesMedicamentoScreen(
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            // Botão Editar -> Leva o ID para o formulário preencher e salvar alteração
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -278,7 +285,6 @@ fun DetalhesMedicamentoScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Botão Excluir
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -315,28 +321,119 @@ fun DetalhesMedicamentoScreen(
         }
 
         if (mostrarConfirmacaoExcluir) {
-            AlertDialog(
-                onDismissRequest = { mostrarConfirmacaoExcluir = false },
-                title = { Text("Excluir medicamento") },
-                text = { Text("Tem certeza que deseja remover ${dados.nome} da sua agenda?") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            mostrarConfirmacaoExcluir = false
-                            viewModel.excluirMedicamento(medicamentoId) {
-                                Toast.makeText(context, "Medicamento excluído!", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    ) {
-                        Text("Excluir", color = Color(0xFFE53935), fontWeight = FontWeight.Bold)
+            DialogoExcluirMedicamento(
+                nomeMedicamento = dados.nome,
+                onConfirmar = {
+                    mostrarConfirmacaoExcluir = false
+                    viewModel.excluirMedicamento(medicamentoId) {
+                        Toast.makeText(context, "Medicamento excluído!", Toast.LENGTH_SHORT).show()
                     }
                 },
-                dismissButton = {
-                    TextButton(onClick = { mostrarConfirmacaoExcluir = false }) {
-                        Text("Cancelar")
-                    }
+                onCancelar = {
+                    mostrarConfirmacaoExcluir = false
                 }
             )
         }
     }
+}
+
+@Composable
+fun DialogoExcluirMedicamento(
+    nomeMedicamento: String,
+    onConfirmar: () -> Unit,
+    onCancelar: () -> Unit
+) {
+    val textoEscuro = Color(0xFF0F172A)
+    val textoSecundario = Color(0xFF64748B)
+    val vermelhoDestaque = Color(0xFFB91C1C)
+    val vermelhoFundo = Color(0xFFFDECEC)
+    val azulBorda = colorResource(R.color.azul_borda)
+
+    AlertDialog(
+        onDismissRequest = onCancelar,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = Color.White,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(vermelhoFundo, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.DeleteOutline,
+                    contentDescription = null,
+                    tint = vermelhoDestaque,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                text = "Excluir medicamento?",
+                color = textoEscuro,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = buildAnnotatedString {
+                        append("Tem certeza que deseja excluir ")
+                        withStyle(
+                            style = SpanStyle(
+                                color = textoEscuro,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        ) {
+                            append(nomeMedicamento.ifBlank { "este medicamento" })
+                        }
+                        append("? Todos os horários e alarmes vinculados serão removidos.")
+                    },
+                    color = textoSecundario,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirmar,
+                shape = RoundedCornerShape(50.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = vermelhoDestaque,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "Excluir",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onCancelar,
+                shape = RoundedCornerShape(50.dp),
+                border = BorderStroke(1.dp, azulBorda),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF086FA7)
+                )
+            ) {
+                Text(
+                    text = "Cancelar",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+            }
+        }
+    )
 }

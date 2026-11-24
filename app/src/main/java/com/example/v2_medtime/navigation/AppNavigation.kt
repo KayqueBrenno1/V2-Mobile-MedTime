@@ -39,6 +39,7 @@ import com.example.v2_medtime.screens.AlarmeMedicamentoScreen
 import com.example.v2_medtime.screens.AlterarSenhaScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
 import com.example.v2_medtime.screens.CodigoGeradoScreen
+import com.example.v2_medtime.screens.CompletarDadosOcrScreen
 import com.example.v2_medtime.screens.DetalhesMedicamentoScreen
 import com.example.v2_medtime.screens.EditarPerfilScreen
 import com.example.v2_medtime.screens.EscolhaCadastroMedicamentoScreen
@@ -323,27 +324,6 @@ fun AppNavigation(
                 launchSingleTop = true
             }
         }
-    }
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var jaIniciouUmaVez by remember { mutableStateOf(false) }
-
-    DisposableEffect(lifecycleOwner, alarmeInicial) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START) {
-                if (jaIniciouUmaVez && alarmeInicial == null) {
-                    val rotaAtual = navController.currentDestination?.route
-                    if (rotaAtual != "splash" && rotaAtual != "alarme") {
-                        navController.navigate("splash") {
-                            launchSingleTop = true
-                        }
-                    }
-                }
-                jaIniciouUmaVez = true
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // Sincronização rápida em primeiro plano quando o paciente está usando o app
@@ -732,6 +712,7 @@ fun AppNavigation(
                 MeuCuidadorScreen(
                     navController = navController,
                     vinculoViewModel = vinculoViewModel,
+                    idPaciente = perfilViewModel.perfil.id,
                     onErro = mostrarMensagem,
                     onSucesso = mostrarMensagem
                 )
@@ -838,6 +819,13 @@ fun AppNavigation(
                     navController = navController,
                     viewModel = medicamentoViewModel,
                     ocrTempId = ocrId
+                )
+            }
+
+            composable("completar_dados_ocr") {
+                CompletarDadosOcrScreen(
+                    navController = navController,
+                    viewModel = medicamentoViewModel
                 )
             }
 

@@ -73,7 +73,7 @@ interface MedTimeApi {
     @DELETE("v1/healthSystem/medtime/vinculo_paciente/paciente/{idPaciente}")
     suspend fun encerrarVinculoPaciente(
         @Path("idPaciente") idPaciente: Long
-    ): Response<JsonObject>
+    ): Response<Unit>
 
     @GET("v1/healthSystem/medtime/tipo_dosagem")
     suspend fun listarTiposDosagem(): Response<JsonObject>
