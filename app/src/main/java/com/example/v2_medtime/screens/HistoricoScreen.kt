@@ -38,6 +38,7 @@ import androidx.navigation.NavController
 import com.example.v2_medtime.screens.components.AgendaBottomBar
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.screens.components.HistoricoCard
+import com.example.v2_medtime.screens.components.PullToRefresh
 import com.example.v2_medtime.viewmodel.HistoricoViewModel
 
 @Composable
@@ -78,74 +79,80 @@ fun HistoricoScreen(
                 }
             }
         ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 20.dp)
+            PullToRefresh(
+                isRefreshing = viewModel.isRefreshing,
+                onRefresh = { viewModel.atualizarHistorico() },
+                modifier = Modifier.fillMaxSize()
             ) {
-                Spacer(modifier = Modifier.height(35.dp))
-
-                Text(
-                    text = "Histórico",
-                    color = textoEscuro,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CircleShape,
-                    color = Color.White,
-                    shadowElevation = 2.dp
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    OutlinedTextField(
-                        value = termoBusca,
-                        onValueChange = { termoBusca = it },
-                        placeholder = {
-                            Text(
-                                text = "Buscar no histórico",
-                                color = textoSecundario,
-                                fontSize = 15.sp
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Search,
-                                contentDescription = "Buscar",
-                                tint = textoSecundario,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        },
-                        textStyle = TextStyle(fontSize = 15.sp, color = textoEscuro),
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = CircleShape,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedContainerColor = Color.White,
-                            focusedContainerColor = Color.White
-                        )
+                    Spacer(modifier = Modifier.height(35.dp))
+
+                    Text(
+                        text = "Histórico",
+                        color = textoEscuro,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = espacamentoInferiorConteudo + 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = listaFiltrada,
-                        key = { it.id }
-                    ) { item ->
-                        HistoricoCard(item = item)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CircleShape,
+                        color = Color.White,
+                        shadowElevation = 2.dp
+                    ) {
+                        OutlinedTextField(
+                            value = termoBusca,
+                            onValueChange = { termoBusca = it },
+                            placeholder = {
+                                Text(
+                                    text = "Buscar no histórico",
+                                    color = textoSecundario,
+                                    fontSize = 15.sp
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Search,
+                                    contentDescription = "Buscar",
+                                    tint = textoSecundario,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            },
+                            textStyle = TextStyle(fontSize = 15.sp, color = textoEscuro),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = CircleShape,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedContainerColor = Color.White,
+                                focusedContainerColor = Color.White
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = espacamentoInferiorConteudo + 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = listaFiltrada,
+                            key = { it.id }
+                        ) { item ->
+                            HistoricoCard(item = item)
+                        }
                     }
                 }
             }

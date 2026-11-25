@@ -70,6 +70,7 @@ import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.screens.components.DiaCalendarioChip
 import com.example.v2_medtime.screens.components.EstoqueCircularCard
 import com.example.v2_medtime.screens.components.ProximoMedicamentoCard
+import com.example.v2_medtime.screens.components.PullToRefresh
 import com.example.v2_medtime.viewmodel.HistoricoViewModel
 import com.example.v2_medtime.viewmodel.InicioViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
@@ -208,249 +209,256 @@ private fun ConteudoInicioPaciente(
     ) {
         BackgroundPadrao()
 
-        LazyColumn(
+        PullToRefresh(
+            isRefreshing = inicioViewModel.isRefreshing,
+            onRefresh = { inicioViewModel.atualizarDados() },
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(
-                top = 14.dp,
-                bottom = espacamentoInferiorConteudo + 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .clickable {
-                                if (navController.currentBackStackEntry?.destination?.route == "visao_paciente/{pacienteId}") {
-                                    navController.popBackStack()
-                                }
-                            },
-                        shape = CircleShape,
-                        color = Color.White,
-                        shadowElevation = 2.dp
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                contentPadding = PaddingValues(
+                    top = 14.dp,
+                    bottom = espacamentoInferiorConteudo + 16.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                contentDescription = "Voltar para pacientes",
-                                tint = TextoEscuroPaciente,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0xFFE0F1FC)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    if (navController.currentBackStackEntry?.destination?.route == "visao_paciente/{pacienteId}") {
+                                        navController.popBackStack()
+                                    }
+                                },
+                            shape = CircleShape,
+                            color = Color.White,
+                            shadowElevation = 2.dp
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Group,
-                                contentDescription = null,
-                                tint = AzulPrincipalPaciente,
-                                modifier = Modifier.size(17.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Visualizando paciente",
-                                color = AzulPrincipalPaciente,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AvatarCircularUsuario(
-                        nome = paciente.nome,
-                        fotoModel = paciente.fotoUrl,
-                        tamanho = 68
-                    )
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = paciente.nome,
-                            color = TextoEscuroPaciente,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Paciente acompanhado",
-                            color = TextoSecundarioPaciente,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Próximos remédios",
-                    color = TextoEscuroPaciente,
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White,
-                    shadowElevation = 2.dp
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            IconButton(
-                                onClick = { inicioViewModel.navegarSemana(-1) },
-                                modifier = Modifier.size(34.dp)
-                            ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                    contentDescription = "Semana anterior",
-                                    tint = TextoEscuroPaciente
+                                    contentDescription = "Voltar para pacientes",
+                                    tint = TextoEscuroPaciente,
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
+                        }
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFFE0F1FC)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.CalendarToday,
+                                    imageVector = Icons.Outlined.Group,
                                     contentDescription = null,
                                     tint = AzulPrincipalPaciente,
                                     modifier = Modifier.size(17.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = inicioViewModel.tituloDataSelecionada,
-                                    color = TextoEscuroPaciente,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            IconButton(
-                                onClick = { inicioViewModel.navegarSemana(1) },
-                                modifier = Modifier.size(34.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = "Próxima semana",
-                                    tint = TextoEscuroPaciente
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            inicioViewModel.diasCalendario.forEach { dia ->
-                                DiaCalendarioChip(
-                                    item = dia,
-                                    selecionado = dia.id == inicioViewModel.diaSelecionadoId,
-                                    onClick = { inicioViewModel.selecionarDia(dia.id) },
-                                    modifier = Modifier.weight(1f)
+                                    text = "Visualizando paciente",
+                                    color = AzulPrincipalPaciente,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
                     }
                 }
-            }
 
-            if (inicioViewModel.proximosMedicamentos.isEmpty()) {
                 item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AvatarCircularUsuario(
+                            nome = paciente.nome,
+                            fotoModel = paciente.fotoUrl,
+                            tamanho = 68
+                        )
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = paciente.nome,
+                                color = TextoEscuroPaciente,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Paciente acompanhado",
+                                color = TextoSecundarioPaciente,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Próximos remédios",
+                        color = TextoEscuroPaciente,
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(22.dp),
                         color = Color.White,
                         shadowElevation = 2.dp
                     ) {
-                        Text(
-                            text = "Nenhum medicamento programado para este dia.",
-                            color = TextoSecundarioPaciente,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(20.dp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                IconButton(
+                                    onClick = { inicioViewModel.navegarSemana(-1) },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                        contentDescription = "Semana anterior",
+                                        tint = TextoEscuroPaciente
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CalendarToday,
+                                        contentDescription = null,
+                                        tint = AzulPrincipalPaciente,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = inicioViewModel.tituloDataSelecionada,
+                                        color = TextoEscuroPaciente,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = { inicioViewModel.navegarSemana(1) },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = "Próxima semana",
+                                        tint = TextoEscuroPaciente
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                inicioViewModel.diasCalendario.forEach { dia ->
+                                    DiaCalendarioChip(
+                                        item = dia,
+                                        selecionado = dia.id == inicioViewModel.diaSelecionadoId,
+                                        onClick = { inicioViewModel.selecionarDia(dia.id) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (inicioViewModel.proximosMedicamentos.isEmpty()) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(22.dp),
+                            color = Color.White,
+                            shadowElevation = 2.dp
+                        ) {
+                            Text(
+                                text = "Nenhum medicamento programado para este dia.",
+                                color = TextoSecundarioPaciente,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(20.dp)
+                            )
+                        }
+                    }
+                } else {
+                    items(
+                        items = inicioViewModel.proximosMedicamentos,
+                        key = { it.id }
+                    ) { dose ->
+                        ProximoMedicamentoCard(
+                            item = dose,
+                            expandido = inicioViewModel.cardExpandidoId == dose.id,
+                            onToggleExpandir = { inicioViewModel.alternarExpansaoCard(dose.id) },
+                            onTomarClick = {
+                                inicioViewModel.marcarComoTomado(dose.id) {
+                                    Toast.makeText(
+                                        context,
+                                        "${dose.nome} confirmado para ${paciente.nome}!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            onAbrirDetalhes = {
+                                navController.navigate("detalhes_medicamento/${dose.medicamentoId}")
+                            }
                         )
                     }
                 }
-            } else {
-                items(
-                    items = inicioViewModel.proximosMedicamentos,
-                    key = { it.id }
-                ) { dose ->
-                    ProximoMedicamentoCard(
-                        item = dose,
-                        expandido = inicioViewModel.cardExpandidoId == dose.id,
-                        onToggleExpandir = { inicioViewModel.alternarExpansaoCard(dose.id) },
-                        onTomarClick = {
-                            inicioViewModel.marcarComoTomado(dose.id) {
-                                Toast.makeText(
-                                    context,
-                                    "${dose.nome} confirmado para ${paciente.nome}!",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        },
-                        onAbrirDetalhes = {
-                            navController.navigate("detalhes_medicamento/${dose.medicamentoId}")
-                        }
-                    )
-                }
-            }
 
-            if (inicioViewModel.resumoEstoque.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        inicioViewModel.resumoEstoque.take(2).forEach { estoque ->
-                            EstoqueCircularCard(
-                                item = estoque,
-                                onClick = {
-                                    navController.navigate("estoque_medicamento/${estoque.medicamentoId}")
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
+                if (inicioViewModel.resumoEstoque.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            inicioViewModel.resumoEstoque.take(2).forEach { estoque ->
+                                EstoqueCircularCard(
+                                    item = estoque,
+                                    onClick = {
+                                        navController.navigate("estoque_medicamento/${estoque.medicamentoId}")
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }

@@ -22,7 +22,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -30,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.v2_medtime.screens.components.BackgroundPadrao
+import com.example.v2_medtime.screens.components.PullToRefresh
 import com.example.v2_medtime.viewmodel.PerfilViewModel
 import com.example.v2_medtime.viewmodel.VinculoViewModel
 import kotlinx.coroutines.launch
@@ -103,8 +103,11 @@ fun AbasCuidador(
                     pacientes = vinculoViewModel.pacientes,
                     onAdicionarPaciente = onAdicionarPaciente,
                     mostrarBarraInferior = false,
-                    espacamentoInferiorConteudo = innerPadding.calculateBottomPadding()
+                    espacamentoInferiorConteudo = innerPadding.calculateBottomPadding(),
+                    isRefreshing = vinculoViewModel.isRefreshing,
+                    onRefresh = { vinculoViewModel.atualizarPacientes(onErro) }
                 )
+
                 1 -> PerfilScreen(
                     navController = navController,
                     viewModel = perfilViewModel,
@@ -126,7 +129,9 @@ fun GerenciarPacientesScreen(
     onAdicionarPaciente: () -> Unit = {},
     mostrarBarraInferior: Boolean = true,
     espacamentoInferiorConteudo: Dp = 0.dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     Box(
         modifier = modifier
@@ -135,90 +140,95 @@ fun GerenciarPacientesScreen(
     ) {
         BackgroundPadrao()
 
-        Column(
+        PullToRefresh(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .then(if (mostrarBarraInferior) Modifier.navigationBarsPadding() else Modifier)
+                .fillMaxWidth()
         ) {
-            Spacer(modifier = Modifier.height(78.dp))
-
-            Button(
-                onClick = onAdicionarPaciente,
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .height(58.dp),
-                shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = AzulPacientes
-                )
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .then(if (mostrarBarraInferior) Modifier.navigationBarsPadding() else Modifier)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.PersonAdd,
-                    contentDescription = null,
-                    modifier = Modifier.size(25.dp),
-                    tint = Color.White
-                )
+                Spacer(modifier = Modifier.height(60.dp))
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Button(
+                    onClick = onAdicionarPaciente,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .height(58.dp),
+                    shape = RoundedCornerShape(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AzulPacientes
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PersonAdd,
+                        contentDescription = null,
+                        modifier = Modifier.size(25.dp),
+                        tint = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Text(
+                        text = "Adicionar paciente",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(42.dp))
 
                 Text(
-                    text = "Adicionar paciente",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    text = "Pacientes vinculados",
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    color = TextoPacientes,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
                 )
-            }
 
-            Spacer(modifier = Modifier.height(42.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "Pacientes vinculados",
-                modifier = Modifier.padding(horizontal = 20.dp),
-                color = TextoPacientes,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(
-                    start = 18.dp,
-                    end = 18.dp,
-                    bottom = espacamentoInferiorConteudo + 16.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                if (pacientes.isEmpty()) {
-                    item {
-                        Text(
-                            text = "Nenhum paciente vinculado ainda.",
-                            color = CinzaPacientes,
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(
-                                horizontal = 4.dp,
-                                vertical = 20.dp
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 18.dp,
+                        end = 18.dp,
+                        bottom = espacamentoInferiorConteudo + 16.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    if (pacientes.isEmpty()) {
+                        item {
+                            Text(
+                                text = "Nenhum paciente vinculado ainda.",
+                                color = CinzaPacientes,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(
+                                    horizontal = 4.dp,
+                                    vertical = 20.dp
+                                )
                             )
-                        )
-                    }
-                } else {
-                    items(
-                        items = pacientes,
-                        key = { it.id }
-                    ) { paciente ->
-                        CardPacienteVinculado(
-                            paciente = paciente,
-                            onClick = {
-                                navController.navigate("visao_paciente/${paciente.id}") {
-                                    launchSingleTop = true
+                        }
+                    } else {
+                        items(
+                            items = pacientes,
+                            key = { it.id }
+                        ) { paciente ->
+                            CardPacienteVinculado(
+                                paciente = paciente,
+                                onClick = {
+                                    navController.navigate("visao_paciente/${paciente.id}") {
+                                        launchSingleTop = true
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }

@@ -46,6 +46,7 @@ import androidx.navigation.NavController
 import com.example.v2_medtime.screens.components.AgendaBottomBar
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.screens.components.MedicamentoAgendaCard
+import com.example.v2_medtime.screens.components.PullToRefresh
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
 
 @Composable
@@ -91,133 +92,139 @@ fun AgendaMedicamentosScreen(
                 }
             }
         ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 20.dp)
+            PullToRefresh(
+                isRefreshing = viewModel.isRefreshing,
+                onRefresh = { viewModel.atualizarMedicamentos() },
+                modifier = Modifier.fillMaxSize()
             ) {
-                Spacer(modifier = Modifier.height(35.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Medicamentos",
-                        color = textoEscuro,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    // Botão circular azul "+" para adicionar novo medicamento
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(azulPrincipal)
-                            .clickable { navController.navigate("escolha_cadastro_medicamento") },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Novo medicamento",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Barra de Busca (Pill branca)
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CircleShape,
-                    color = Color.White,
-                    shadowElevation = 2.dp
-                ) {
-                    OutlinedTextField(
-                        value = termoBusca,
-                        onValueChange = { termoBusca = it },
-                        placeholder = {
-                            Text(
-                                text = "Buscar medicamento",
-                                color = textoSecundario,
-                                fontSize = 15.sp
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Search,
-                                contentDescription = "Buscar",
-                                tint = textoSecundario,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        },
-                        textStyle = TextStyle(fontSize = 15.sp, color = textoEscuro),
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = CircleShape,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedContainerColor = Color.White,
-                            focusedContainerColor = Color.White
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Chips de Filtro: Todos | Ativos | Pausados | Concluídos
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    filtros.forEach { filtro ->
-                        val selecionado = filtro == filtroSelecionado
-                        Surface(
-                            modifier = Modifier.clickable { filtroSelecionado = filtro },
-                            shape = CircleShape,
-                            color = if (selecionado) azulPrincipal else Color.White,
-                            shadowElevation = 1.dp
+                    Spacer(modifier = Modifier.height(35.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Medicamentos",
+                            color = textoEscuro,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        // Botão circular azul "+" para adicionar novo medicamento
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(azulPrincipal)
+                                .clickable { navController.navigate("escolha_cadastro_medicamento") },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = filtro,
-                                color = if (selecionado) Color.White else textoSecundario,
-                                fontSize = 13.sp,
-                                fontWeight = if (selecionado) FontWeight.SemiBold else FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp)
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Novo medicamento",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                // Lista de Medicamentos
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = espacamentoInferiorConteudo + 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    itemsIndexed(
-                        items = listaFiltrada,
-                        key = { _, item -> item.id }
-                    ) { index, item ->
-                        MedicamentoAgendaCard(
-                            item = item,
-                            colorIndex = index,
-                            onClick = {
-                                navController.navigate("detalhes_medicamento/${item.id}")
-                            }
+                    // Barra de Busca (Pill branca)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CircleShape,
+                        color = Color.White,
+                        shadowElevation = 2.dp
+                    ) {
+                        OutlinedTextField(
+                            value = termoBusca,
+                            onValueChange = { termoBusca = it },
+                            placeholder = {
+                                Text(
+                                    text = "Buscar medicamento",
+                                    color = textoSecundario,
+                                    fontSize = 15.sp
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Search,
+                                    contentDescription = "Buscar",
+                                    tint = textoSecundario,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            },
+                            textStyle = TextStyle(fontSize = 15.sp, color = textoEscuro),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = CircleShape,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedContainerColor = Color.White,
+                                focusedContainerColor = Color.White
+                            )
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Chips de Filtro: Todos | Ativos | Pausados | Concluídos
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        filtros.forEach { filtro ->
+                            val selecionado = filtro == filtroSelecionado
+                            Surface(
+                                modifier = Modifier.clickable { filtroSelecionado = filtro },
+                                shape = CircleShape,
+                                color = if (selecionado) azulPrincipal else Color.White,
+                                shadowElevation = 1.dp
+                            ) {
+                                Text(
+                                    text = filtro,
+                                    color = if (selecionado) Color.White else textoSecundario,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (selecionado) FontWeight.SemiBold else FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Lista de Medicamentos
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = espacamentoInferiorConteudo + 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        itemsIndexed(
+                            items = listaFiltrada,
+                            key = { _, item -> item.id }
+                        ) { index, item ->
+                            MedicamentoAgendaCard(
+                                item = item,
+                                colorIndex = index,
+                                onClick = {
+                                    navController.navigate("detalhes_medicamento/${item.id}")
+                                }
+                            )
+                        }
                     }
                 }
             }
