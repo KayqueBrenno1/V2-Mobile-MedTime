@@ -61,7 +61,10 @@ fun AbasCuidador(
 
     LaunchedEffect(pagerState.settledPage) {
         if (pagerState.settledPage == 0) {
-            vinculoViewModel.carregarPacientes(onErro)
+            vinculoViewModel.carregarPacientes(
+                onErro = onErro,
+                silencioso = true
+            )
         }
     }
 
@@ -108,7 +111,8 @@ fun AbasCuidador(
                     onNavigateTab = {},
                     mostrarBarraInferior = false,
                     espacamentoInferiorConteudo = innerPadding.calculateBottomPadding(),
-                    perfilCuidador = true
+                    perfilCuidador = true,
+                    onVoltarPacientes = { irParaPagina(0) }
                 )
             }
         }

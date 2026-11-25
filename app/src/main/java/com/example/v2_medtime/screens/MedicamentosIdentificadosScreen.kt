@@ -251,9 +251,8 @@ fun MedicamentosIdentificadosScreen(
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = azulPrincipal)
                 ) {
-                    if (viewModel.isLoading) {
+                    if (viewModel.isEscaneandoOcr) {
                         CircularProgressIndicator(
-                            color = Color.White,
                             strokeWidth = 2.5.dp,
                             modifier = Modifier.size(22.dp)
                         )

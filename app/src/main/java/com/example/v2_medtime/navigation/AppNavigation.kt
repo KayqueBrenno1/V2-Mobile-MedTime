@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,9 +20,6 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,6 +31,7 @@ import com.example.v2_medtime.data.remote.GoogleAuthManager
 import com.example.v2_medtime.data.remote.RetrofitClient
 import com.example.v2_medtime.notifications.AgendadorAlarmesMedicamento
 import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
+import com.example.v2_medtime.screens.AbasCuidador
 import com.example.v2_medtime.screens.AlarmeMedicamentoScreen
 import com.example.v2_medtime.screens.AlterarSenhaScreen
 import com.example.v2_medtime.screens.CadastroSucessoMedicamentoScreen
@@ -50,8 +47,10 @@ import com.example.v2_medtime.screens.InserirCodigoVinculoScreen
 import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.MedicamentosIdentificadosScreen
 import com.example.v2_medtime.screens.MeuCuidadorScreen
+import com.example.v2_medtime.screens.PacienteVinculado
 import com.example.v2_medtime.screens.PerfilScreen
 import com.example.v2_medtime.screens.VinculoRealizadoScreen
+import com.example.v2_medtime.screens.VisaoPacienteScreen
 import com.example.v2_medtime.screens.auth.BoasVindasScreen
 import com.example.v2_medtime.screens.auth.CadastroRealizadoScreen
 import com.example.v2_medtime.screens.auth.ConfirmarEmailScreen
@@ -668,16 +667,14 @@ fun AppNavigation(
             }
 
             composable("gerenciar_pacientes") {
-                LaunchedEffect(Unit) {
-                    vinculoViewModel.carregarPacientes(mostrarMensagem)
-                }
-
-                GerenciarPacientesScreen(
+                AbasCuidador(
                     navController = navController,
-                    pacientes = vinculoViewModel.pacientes,
+                    vinculoViewModel = vinculoViewModel,
+                    perfilViewModel = perfilViewModel,
                     onAdicionarPaciente = {
                         navController.navigate("gerar_codigo")
-                    }
+                    },
+                    onErro = mostrarMensagem
                 )
             }
 
@@ -688,6 +685,23 @@ fun AppNavigation(
                     onNavigateTab = {},
                     mostrarBarraInferior = false,
                     perfilCuidador = true
+                )
+            }
+
+            composable("visao_paciente/{pacienteId}") { backStackEntry ->
+                val pacienteId = backStackEntry.arguments
+                    ?.getString("pacienteId")
+                    ?.toIntOrNull() ?: 0
+
+                val paciente = vinculoViewModel.pacientes.find { it.id == pacienteId }
+                    ?: PacienteVinculado(id = pacienteId, nome = "Paciente")
+
+                VisaoPacienteScreen(
+                    paciente = paciente,
+                    navController = navController,
+                    inicioViewModel = inicioViewModel,
+                    medicamentoViewModel = medicamentoViewModel,
+                    historicoViewModel = historicoViewModel
                 )
             }
 
@@ -721,6 +735,7 @@ fun AppNavigation(
             composable("inserir_codigo_vinculo") {
                 InserirCodigoVinculoScreen(
                     navController = navController,
+                    carregando = vinculoViewModel.carregando,
                     onVerificarCodigo = { codigo ->
                         vinculoViewModel.validarCodigo(
                             codigo = codigo,

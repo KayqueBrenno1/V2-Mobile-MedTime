@@ -20,6 +20,24 @@ class HistoricoViewModel(
     var isLoading by mutableStateOf(false)
         private set
 
+    var isRefreshing by mutableStateOf(false)
+        private set
+
+    fun atualizarHistorico() {
+        if (isLoading || isRefreshing) return
+        viewModelScope.launch {
+            isRefreshing = true
+            try {
+                repository.listarHistorico().onSuccess {
+                    listaHistorico.clear()
+                    listaHistorico.addAll(it)
+                }
+            } finally {
+                isRefreshing = false
+            }
+        }
+    }
+
     fun iniciarSessao(idUsuario: Long) {
         viewModelScope.coroutineContext.cancelChildren()
         (repository as? ApiHistoricoRepository)?.idUsuario = idUsuario

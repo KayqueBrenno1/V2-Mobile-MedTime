@@ -53,6 +53,30 @@ class InicioViewModel(
     var erroInicio by mutableStateOf<String?>(null)
         private set
 
+    var isRefreshing by mutableStateOf(false)
+        private set
+
+    fun atualizarDados() {
+        if (isLoading || isRefreshing) return
+        viewModelScope.launch {
+            isRefreshing = true
+            try {
+                if (diasCalendario.isEmpty()) {
+                    atualizarDiasDaSemana(0, selecionarHoje = true)
+                }
+                if (diaSelecionadoId.isNotBlank()) {
+                    carregarDosesDoDia(diaSelecionadoId)
+                }
+                repository.obterResumoEstoque().onSuccess { estoques ->
+                    resumoEstoque.clear()
+                    resumoEstoque.addAll(estoques)
+                }
+            } finally {
+                isRefreshing = false
+            }
+        }
+    }
+
     val tituloDataSelecionada: String
         get() {
             val data = runCatching { LocalDate.parse(diaSelecionadoId) }.getOrNull() ?: LocalDate.now()

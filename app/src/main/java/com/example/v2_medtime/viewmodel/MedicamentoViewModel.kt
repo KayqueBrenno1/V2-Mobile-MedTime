@@ -60,6 +60,31 @@ class MedicamentoViewModel(
     var erroMensagem by mutableStateOf<String?>(null)
         private set
 
+    var isRefreshing by mutableStateOf(false)
+        private set
+
+    fun atualizarMedicamentos() {
+        if (carregandoLista || isRefreshing) return
+        viewModelScope.launch {
+            carregandoLista = true
+            isRefreshing = true
+            erroMensagem = null
+            try {
+                repository.listarMedicamentos()
+                    .onSuccess { itens ->
+                        listaMedicamentos.clear()
+                        listaMedicamentos.addAll(itens)
+                    }
+                    .onFailure { erro ->
+                        erroMensagem = erro.message ?: "Erro ao carregar medicamentos"
+                    }
+            } finally {
+                carregandoLista = false
+                isRefreshing = false
+            }
+        }
+    }
+
     // ==========================================================
     // ESTADOS DO FLUXO DE OCR + IA
     // ==========================================================

@@ -1,6 +1,9 @@
 package com.example.v2_medtime.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,16 +12,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,10 +39,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -40,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -61,6 +73,7 @@ import com.example.v2_medtime.screens.components.ProximoMedicamentoCard
 import com.example.v2_medtime.viewmodel.HistoricoViewModel
 import com.example.v2_medtime.viewmodel.InicioViewModel
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
+import kotlinx.coroutines.launch
 
 private val AzulPrincipalPaciente = Color(0xFF1592D0)
 private val TextoEscuroPaciente = Color(0xFF0F172A)
@@ -75,13 +88,55 @@ fun VisaoPacienteScreen(
     historicoViewModel: HistoricoViewModel,
     modifier: Modifier = Modifier
 ) {
-    var abaSelecionada by rememberSaveable { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { 3 }
+    )
+    val coroutineScope = rememberCoroutineScope()
+    var ultimoPacienteCarregadoId by rememberSaveable { mutableIntStateOf(-1) }
+
+    val navegarParaAba: (Int) -> Unit = { novaAba ->
+        if (novaAba in 0..2 && novaAba != pagerState.targetPage) {
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(
+                    page = novaAba,
+                    animationSpec = tween(
+                        durationMillis = 250,
+                        easing = FastOutSlowInEasing
+                    )
+                )
+            }
+        }
+    }
+
+    // Ao pressionar Voltar do sistema nas abas Medicamentos ou Histórico,
+    // desliza de volta para a aba Início do paciente antes de sair da visualização.
+    BackHandler(enabled = pagerState.currentPage != 0) {
+        navegarParaAba(0)
+    }
 
     LaunchedEffect(paciente.id) {
         val idPaciente = paciente.id.toLong()
-        inicioViewModel.iniciarSessao(idPaciente, paciente.nome)
-        medicamentoViewModel.iniciarSessao(idPaciente)
-        historicoViewModel.iniciarSessao(idPaciente)
+        if (ultimoPacienteCarregadoId != paciente.id) {
+            ultimoPacienteCarregadoId = paciente.id
+            inicioViewModel.iniciarSessao(idPaciente, paciente.nome)
+            medicamentoViewModel.iniciarSessao(idPaciente)
+            historicoViewModel.iniciarSessao(idPaciente)
+        } else {
+            inicioViewModel.carregarDadosIniciais()
+            medicamentoViewModel.carregarMedicamentos()
+        }
+    }
+
+    // Atualiza os dados da aba sempre que o cuidador deslizar ou tocar para trocar de página
+    LaunchedEffect(pagerState.settledPage) {
+        if (ultimoPacienteCarregadoId == paciente.id) {
+            when (pagerState.settledPage) {
+                0 -> inicioViewModel.carregarDadosIniciais()
+                1 -> medicamentoViewModel.carregarMedicamentos()
+                2 -> historicoViewModel.carregarHistorico()
+            }
+        }
     }
 
     Scaffold(
@@ -89,42 +144,50 @@ fun VisaoPacienteScreen(
         containerColor = Color(0xFFF3F8FD),
         bottomBar = {
             BarraInferiorVisaoPaciente(
-                abaSelecionada = abaSelecionada,
-                onSelecionarAba = { novaAba ->
-                    abaSelecionada = novaAba
-                    when (novaAba) {
-                        0 -> inicioViewModel.carregarDadosIniciais()
-                        1 -> medicamentoViewModel.carregarMedicamentos()
-                        2 -> historicoViewModel.carregarHistorico()
-                    }
-                }
+                abaSelecionada = pagerState.currentPage,
+                onSelecionarAba = navegarParaAba
             )
         }
     ) { innerPadding ->
+        val direcaoLayout = LocalLayoutDirection.current
         val espacamentoInferior = innerPadding.calculateBottomPadding()
 
-        when (abaSelecionada) {
-            0 -> ConteudoInicioPaciente(
-                paciente = paciente,
-                navController = navController,
-                inicioViewModel = inicioViewModel,
-                espacamentoInferiorConteudo = espacamentoInferior
-            )
+        HorizontalPager(
+            state = pagerState,
+            userScrollEnabled = true,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    start = innerPadding.calculateStartPadding(direcaoLayout),
+                    end = innerPadding.calculateEndPadding(direcaoLayout)
+                )
+                .consumeWindowInsets(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+            beyondViewportPageCount = 1,
+            key = { it }
+        ) { pagina ->
+            when (pagina) {
+                0 -> ConteudoInicioPaciente(
+                    paciente = paciente,
+                    navController = navController,
+                    inicioViewModel = inicioViewModel,
+                    espacamentoInferiorConteudo = espacamentoInferior
+                )
 
-            1 -> AgendaMedicamentosScreen(
-                navController = navController,
-                viewModel = medicamentoViewModel,
-                mostrarBarraInferior = false,
-                espacamentoInferiorConteudo = espacamentoInferior
-            )
+                1 -> AgendaMedicamentosScreen(
+                    navController = navController,
+                    viewModel = medicamentoViewModel,
+                    mostrarBarraInferior = false,
+                    espacamentoInferiorConteudo = espacamentoInferior
+                )
 
-            2 -> HistoricoScreen(
-                navController = navController,
-                viewModel = historicoViewModel,
-                onNavigateTab = {},
-                mostrarBarraInferior = false,
-                espacamentoInferiorConteudo = espacamentoInferior
-            )
+                2 -> HistoricoScreen(
+                    navController = navController,
+                    viewModel = historicoViewModel,
+                    onNavigateTab = {},
+                    mostrarBarraInferior = false,
+                    espacamentoInferiorConteudo = espacamentoInferior
+                )
+            }
         }
     }
 }
@@ -166,7 +229,11 @@ private fun ConteudoInicioPaciente(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .clickable { navController.popBackStack() },
+                            .clickable {
+                                if (navController.currentBackStackEntry?.destination?.route == "visao_paciente/{pacienteId}") {
+                                    navController.popBackStack()
+                                }
+                            },
                         shape = CircleShape,
                         color = Color.White,
                         shadowElevation = 2.dp
@@ -207,7 +274,6 @@ private fun ConteudoInicioPaciente(
                 }
             }
 
-            // 2. Identificação do Paciente + Atalhos de Localização e Pulseira
             item {
                 Row(
                     modifier = Modifier

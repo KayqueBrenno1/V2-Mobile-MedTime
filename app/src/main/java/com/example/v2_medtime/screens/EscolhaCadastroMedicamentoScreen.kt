@@ -279,7 +279,6 @@ fun EscolhaCadastroMedicamentoScreen(
             ) {
                 if (viewModel.isEscaneandoOcr) {
                     CircularProgressIndicator(
-                        color = Color.White,
                         strokeWidth = 2.5.dp,
                         modifier = Modifier.size(22.dp)
                     )

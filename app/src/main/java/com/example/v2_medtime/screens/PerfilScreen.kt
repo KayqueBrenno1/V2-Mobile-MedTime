@@ -66,7 +66,8 @@ fun PerfilScreen(
     modifier: Modifier = Modifier,
     mostrarBarraInferior: Boolean = true,
     espacamentoInferiorConteudo: Dp = 0.dp,
-    perfilCuidador: Boolean = false
+    perfilCuidador: Boolean = false,
+    onVoltarPacientes: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val perfil = viewModel.perfil
@@ -88,7 +89,9 @@ fun PerfilScreen(
                 if (perfilCuidador) {
                     BarraInferiorPacientes(
                         onPacientes = {
-                            if (!navController.popBackStack("gerenciar_pacientes", inclusive = false)) {
+                            if (onVoltarPacientes != null) {
+                                onVoltarPacientes()
+                            } else if (!navController.popBackStack("gerenciar_pacientes", inclusive = false)) {
                                 navController.navigate("gerenciar_pacientes") {
                                     launchSingleTop = true
                                 }

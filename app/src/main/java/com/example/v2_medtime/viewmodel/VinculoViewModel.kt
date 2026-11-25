@@ -36,11 +36,15 @@ class VinculoViewModel(
     var meuCuidador by mutableStateOf<CuidadorVinculado?>(null)
         private set
 
+    var isRefreshing by mutableStateOf(false)
+        private set
+
     fun limparSessao() {
         viewModelScope.coroutineContext.cancelChildren()
         pacientes = emptyList()
         meuCuidador = null
         carregando = false
+        isRefreshing = false
     }
 
     fun carregarMeuCuidador(onErro: (String) -> Unit = {}) {
@@ -98,41 +102,64 @@ class VinculoViewModel(
         }
     }
 
-    fun carregarPacientes(onErro: (String) -> Unit = {}) {
-        executar(onErro) {
-            val resposta = repositorio.listarPacientes()
-            when {
-                resposta.code() == 404 -> {
-                    pacientes = emptyList()
-                }
+    fun carregarPacientes(
+        onErro: (String) -> Unit = {},
+        silencioso: Boolean = false
+    ) {
+        executar(onErro = onErro, silencioso = silencioso) {
+            buscarPacientes(onErro)
+        }
+    }
 
-                resposta.confirmouSucesso() -> {
-                    val lista = resposta.body()?.getAsJsonObject("response")
-                        ?.getAsJsonArray("vinculo_paciente")
-                        ?.mapNotNull { elem ->
-                            val obj = elem.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
-                            val id = obj.texto("id_paciente")?.toIntOrNull() ?: return@mapNotNull null
-                            val nome = obj.texto("nome_paciente")
-                                ?.takeIf { it.isNotBlank() }
-                                ?: obj.texto("nome")?.takeIf { it.isNotBlank() }
-                                ?: "Paciente #$id"
-                            val foto = obj.texto("foto_paciente")
-                                ?.takeIf { it.isNotBlank() }
-                                ?: obj.texto("foto")?.takeIf { it.isNotBlank() }
+    fun atualizarPacientes(onErro: (String) -> Unit = {}) {
+        if (carregando || isRefreshing) return
+        viewModelScope.launch {
+            isRefreshing = true
+            try {
+                buscarPacientes(onErro)
+            } catch (cancelamento: CancellationException) {
+                throw cancelamento
+            } catch (erro: Exception) {
+                onErro(erro.message ?: "Erro de comunicação com o servidor.")
+            } finally {
+                isRefreshing = false
+            }
+        }
+    }
 
-                            PacienteVinculado(
-                                id = id,
-                                nome = nome,
-                                fotoUrl = foto
-                            )
-                        }.orEmpty()
+    private suspend fun buscarPacientes(onErro: (String) -> Unit) {
+        val resposta = repositorio.listarPacientes()
+        when {
+            resposta.code() == 404 -> {
+                pacientes = emptyList()
+            }
 
-                    pacientes = lista
-                }
+            resposta.confirmouSucesso() -> {
+                val lista = resposta.body()?.getAsJsonObject("response")
+                    ?.getAsJsonArray("vinculo_paciente")
+                    ?.mapNotNull { elem ->
+                        val obj = elem.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                        val id = obj.texto("id_paciente")?.toIntOrNull() ?: return@mapNotNull null
+                        val nome = obj.texto("nome_paciente")
+                            ?.takeIf { it.isNotBlank() }
+                            ?: obj.texto("nome")?.takeIf { it.isNotBlank() }
+                            ?: "Paciente #$id"
+                        val foto = obj.texto("foto_paciente")
+                            ?.takeIf { it.isNotBlank() }
+                            ?: obj.texto("foto")?.takeIf { it.isNotBlank() }
 
-                else -> {
-                    onErro(resposta.mensagemDeErro("Não foi possível carregar os pacientes."))
-                }
+                        PacienteVinculado(
+                            id = id,
+                            nome = nome,
+                            fotoUrl = foto
+                        )
+                    }.orEmpty()
+
+                pacientes = lista
+            }
+
+            else -> {
+                onErro(resposta.mensagemDeErro("Não foi possível carregar os pacientes."))
             }
         }
     }
@@ -191,10 +218,11 @@ class VinculoViewModel(
 
     private fun executar(
         onErro: (String) -> Unit,
+        silencioso: Boolean = false,
         bloco: suspend () -> Unit
     ) {
         viewModelScope.launch {
-            carregando = true
+            if (!silencioso) carregando = true
             try {
                 bloco()
             } catch (cancelamento: CancellationException) {
@@ -202,7 +230,7 @@ class VinculoViewModel(
             } catch (erro: Exception) {
                 onErro(erro.message ?: "Erro de comunicação com o servidor.")
             } finally {
-                carregando = false
+                if (!silencioso) carregando = false
             }
         }
     }
