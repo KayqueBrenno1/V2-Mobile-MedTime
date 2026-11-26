@@ -43,7 +43,7 @@ fun EscolhaPerfilScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 28.dp)
         ) {
-            Spacer(modifier = Modifier.height(45.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = "MedTime",

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material3.Button
@@ -23,17 +22,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.v2_medtime.model.MedicamentoRequest
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.example.v2_medtime.R
+import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.screens.components.BackgroundPadrao
 import com.example.v2_medtime.screens.components.ResumoMedicamentoCard
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
@@ -60,6 +62,7 @@ fun CadastroSucessoMedicamentoScreen(
     val azulPrincipal = Color(0xFF0077D7)
     val textoTitulo = Color(0xFF0B132B)
     val textoSubtitulo = Color(0xFF5A657D)
+    val composicaoSucesso by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.check))
 
     Box(
         modifier = modifier
@@ -84,32 +87,12 @@ fun CadastroSucessoMedicamentoScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(116.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFDCEBFA)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color(0xFF1992F0), Color(0xFF006AC2))
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Sucesso",
-                            tint = Color.White,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                }
+                LottieAnimation(
+                    composition = composicaoSucesso,
+                    iterations = 1,
+                    speed = 2f,
+                    modifier = Modifier.size(116.dp)
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -146,7 +129,7 @@ fun CadastroSucessoMedicamentoScreen(
             ) {
                 Button(
                     onClick = {
-                        navController.popBackStack()
+                        navController.popBackStack("escolha_cadastro_medicamento", inclusive = false)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -171,7 +154,9 @@ fun CadastroSucessoMedicamentoScreen(
 
                 OutlinedButton(
                     onClick = {
-                        // Rota futura: navController.navigate("ListaMedicamentos")
+                        if (!navController.popBackStack("abas_principais", inclusive = false)) {
+                            navController.popBackStack("visao_paciente/{pacienteId}", inclusive = false)
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()

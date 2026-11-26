@@ -2,11 +2,8 @@ package com.example.v2_medtime.screens
 
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,8 +13,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -49,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,17 +67,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.v2_medtime.model.MedicamentoRequest
+import com.example.v2_medtime.data.model.MedicamentoRequest
 import com.example.v2_medtime.screens.components.BackgroundPadrao
+import com.example.v2_medtime.screens.components.SeletorFoto
 import com.example.v2_medtime.viewmodel.MedicamentoViewModel
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import java.io.File
-import java.io.FileOutputStream
 
 val FundoTela = Color(0xFFF5F8FC)
 val TextoEscuro = Color(0xFF1A2138)
@@ -86,17 +83,22 @@ val AzulPrincipal = Color(0xFF0070D2)
 val AzulBadgeFundo = Color(0xFFEAF3FC)
 val VermelhoObrigatorio = Color(0xFFE53935)
 
-fun validarCampos(estado: MedicamentoRequest): Set<String> {
+fun validarCampos(estado: MedicamentoRequest, cadastroNovo: Boolean = true): Set<String> {
     val erros = mutableSetOf<String>()
 
     if (estado.nome.isBlank()) erros.add("nome")
     if (estado.concentracao.isBlank()) erros.add("concentracao")
     if (estado.unidadeMedida.isBlank()) erros.add("unidadeMedida")
     if (estado.dose.isBlank()) erros.add("dose")
+    if (estado.unidadeDose.isBlank()) erros.add("unidadeDose")
     if (estado.tipoMedicamento.isBlank()) erros.add("tipoMedicamento")
-    if (estado.frequencia.isBlank()) erros.add("frequencia")
-    if (estado.intervaloDosagem.isBlank()) erros.add("intervaloDosagem")
-    if (estado.horarioInicial.isBlank()) erros.add("horarioInicial")
+    if (cadastroNovo || estado.frequencia.isNotBlank() ||
+        estado.intervaloDosagem.isNotBlank() || estado.horarioInicial.isNotBlank()
+    ) {
+        if (estado.frequencia.isBlank()) erros.add("frequencia")
+        if (estado.intervaloDosagem.isBlank()) erros.add("intervaloDosagem")
+        if (estado.horarioInicial.isBlank()) erros.add("horarioInicial")
+    }
     if (estado.quantidadeTotal.isBlank()) erros.add("quantidadeTotal")
 
     return erros
@@ -107,33 +109,24 @@ fun validarCampos(estado: MedicamentoRequest): Set<String> {
 fun MedicamentoScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    viewModel: MedicamentoViewModel
+    viewModel: MedicamentoViewModel,
+    medicamentoId: Long? = null,
+    ocrTempId: Long? = null
 ) {
+
     val context = LocalContext.current
 
-    // Captura de Imagem via FileProvider
-    val photoFile = remember { File(context.cacheDir, "camera_foto_${System.currentTimeMillis()}.jpg") }
-    var imagemRemedioUri by remember { mutableStateOf<Uri?>(null) }
-    val cameraImagemUri = remember {
-        FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            photoFile
-        )
-    }
+    // Verifica se a tela foi aberta no modo Edição ou Novo Cadastro
+    val itemParaEditar = medicamentoId?.let { viewModel.buscarPorId(it) }
+    val itemOcrParaEditar = ocrTempId?.let { viewModel.buscarItemOcrPorId(it) }
+    val isEdicao = itemParaEditar != null || itemOcrParaEditar != null
 
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> if (uri != null) imagemRemedioUri = uri }
-    )
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success -> if (success) imagemRemedioUri = cameraImagemUri }
-    )
-
-    var mostrarOpcoesFoto by remember { mutableStateOf(false) }
-
+    var fotoSelecionada by rememberSaveable(
+        medicamentoId,
+        ocrTempId,
+        itemParaEditar?.dados
+    ) { mutableStateOf<Uri?>(itemParaEditar?.imagemUri) }
+    var mostrarSeletorFoto by remember { mutableStateOf(false) }
     // Seletor de Hora
     var mostrarSeletorHora by remember { mutableStateOf(false) }
     val timePickerState = rememberTimePickerState(
@@ -142,13 +135,20 @@ fun MedicamentoScreen(
         is24Hour = true
     )
 
-    // Estado do Formulário
-    var estadoFormulario by remember {
+    // Estado do Formulário (pré-preenchido se for edição)
+    var estadoFormulario by remember(
+        medicamentoId,
+        ocrTempId,
+        itemParaEditar?.dados,
+        itemOcrParaEditar?.dados
+    ) {
         mutableStateOf(
-            MedicamentoRequest(
-                unidadeMedida = "mg",
-                tipoMedicamento = "Comprimido"
-            )
+            itemParaEditar?.dados
+                ?: itemOcrParaEditar?.dados
+                ?: MedicamentoRequest(
+                    unidadeMedida = "mg",
+                    tipoMedicamento = "Comprimido"
+                )
         )
     }
     var camposComErro by remember { mutableStateOf(setOf<String>()) }
@@ -158,19 +158,21 @@ fun MedicamentoScreen(
         "Comprimido", "Cápsula", "Gotas", "Solução",
         "Xarope", "Suspensão", "Injeção", "Pomada", "Creme", "Spray"
     )
-    val intervalosOpcoes = listOf("hora", "dia", "semana", "mês")
+    val intervalosOpcoes = listOf("hora", "dia")
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(FundoTela)
     ) {
-        // Seu componente oficial de fundo ondulado
         BackgroundPadrao()
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
+                .statusBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
@@ -201,7 +203,7 @@ fun MedicamentoScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Preencha as informações do medicamento",
+                text = if (isEdicao) "Edite as informações do medicamento" else "Preencha as informações do medicamento",
                 color = TextoSecundario,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
@@ -223,57 +225,79 @@ fun MedicamentoScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Seletor de Foto do Medicamento
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(FundoTela)
-                            .border(1.dp, BordaInput, RoundedCornerShape(12.dp))
-                            .clickable { mostrarOpcoesFoto = true }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    val previaFoto = fotoSelecionada ?: itemParaEditar?.imagemUrlRemota
+                    Surface(
+                        onClick = { mostrarSeletorFoto = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = FundoTela,
+                        border = BorderStroke(
+                            1.dp,
+                            if (camposComErro.contains("imagem")) VermelhoObrigatorio else BordaInput
+                        )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color.White)
-                                .border(1.dp, BordaInput, RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            if (imagemRemedioUri != null) {
-                                AsyncImage(
-                                    model = imagemRemedioUri,
-                                    contentDescription = "Foto do medicamento",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(AzulBadgeFundo),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (previaFoto == null) {
+                                    Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = AzulPrincipal)
+                                } else {
+                                    AsyncImage(
+                                        model = previaFoto,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+
+                            Column {
+                                Text(
+                                    text = "Foto do medicamento",
+                                    color = TextoEscuro,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Outlined.CameraAlt,
-                                    contentDescription = "Adicionar foto",
-                                    tint = AzulPrincipal,
-                                    modifier = Modifier.size(24.dp)
+                                Text(
+                                    text = if (previaFoto == null) "Toque para tirar foto ou abrir a galeria"
+                                        else "Toque para alterar a foto",
+                                    color = TextoSecundario,
+                                    fontSize = 12.sp
                                 )
                             }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (imagemRemedioUri != null) "Foto selecionada" else "Foto do medicamento",
-                                color = TextoEscuro,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = if (imagemRemedioUri != null) "Toque para alterar a imagem" else "Toque para tirar foto ou abrir galeria",
-                                color = TextoSecundario,
-                                fontSize = 12.sp
-                            )
+                    SeletorFoto(
+                        aberto = mostrarSeletorFoto,
+                        onFechar = { mostrarSeletorFoto = false },
+                        onFotoSelecionada = {
+                            fotoSelecionada = it
+                            camposComErro = camposComErro - "imagem"
                         }
+                    )
+
+                    if (camposComErro.contains("imagem")) {
+                        Text(
+                            text = "Selecione uma foto para cadastrar o medicamento.",
+                            color = VermelhoObrigatorio,
+                            fontSize = 13.sp
+                        )
+                    } else if (fotoSelecionada != null) {
+                        Text(
+                            text = "A foto será enviada ao salvar o medicamento.",
+                            color = TextoSecundario,
+                            fontSize = 13.sp
+                        )
                     }
 
                     // 1. Medicamento *
@@ -366,6 +390,19 @@ fun MedicamentoScreen(
                             )
                         }
                     }
+
+                    DesignDropdownSelect(
+                        label = "Unidade da dose",
+                        required = true,
+                        placeholder = "Selecione a unidade",
+                        options = unidadesMedida,
+                        selectedValue = estadoFormulario.unidadeDose,
+                        isError = camposComErro.contains("unidadeDose"),
+                        onValueChanged = {
+                            estadoFormulario = estadoFormulario.copy(unidadeDose = it)
+                            camposComErro = camposComErro - "unidadeDose"
+                        }
+                    )
 
                     // 4. Frequência * ("De [ 5 ] em 5 dia(s)")
                     val numeroFreq = estadoFormulario.frequencia.ifEmpty { "---" }
@@ -533,85 +570,80 @@ fun MedicamentoScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botão Finalizar -> Salva no ViewModel e vai para Tela de Sucesso
+            // Botão Finalizar (Cadastro ou Edição via Repository)
             Button(
                 onClick = {
-                    val errosEncontrados = validarCampos(estadoFormulario)
+                    val errosEncontrados = validarCampos(
+                        estadoFormulario,
+                        cadastroNovo = itemParaEditar == null
+                    ).toMutableSet().apply {
+                        if (itemParaEditar == null && itemOcrParaEditar == null && fotoSelecionada == null) {
+                            add("imagem")
+                        }
+                    }
                     camposComErro = errosEncontrados
 
                     if (errosEncontrados.isEmpty()) {
-                        imagemRemedioUri?.let { uriSegura ->
-                            try {
-                                val tempFile = File(context.cacheDir, "imagem_upload_temp.jpg")
-                                context.contentResolver.openInputStream(uriSegura)?.use { inputStream ->
-                                    FileOutputStream(tempFile).use { outputStream -> inputStream.copyTo(outputStream) }
+                        if (itemOcrParaEditar != null) {
+                            // 1. Edição de item extraído pelo OCR (antes de salvar na agenda)
+                            viewModel.atualizarItemOcr(itemOcrParaEditar.idTemporario, estadoFormulario)
+                            Toast.makeText(context, "Item atualizado na lista!", Toast.LENGTH_SHORT).show()
+                            navController.popBackStack()
+                        } else if (itemParaEditar != null && medicamentoId != null) {
+                            // 2. Edição de medicamento já cadastrado na agenda
+                            viewModel.atualizarMedicamento(
+                                id = medicamentoId,
+                                request = estadoFormulario,
+                                imagemUri = fotoSelecionada,
+                                onSucesso = {
+                                    Toast.makeText(context, "Medicamento atualizado!", Toast.LENGTH_SHORT).show()
+                                    navController.popBackStack()
                                 }
-                                val requestFile = tempFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
-                                val body = MultipartBody.Part.createFormData("imagem_medicamento", tempFile.name, requestFile)
-                                println("Arquivo convertido com sucesso: ${tempFile.absolutePath}")
-                            } catch (error: Exception) {
-                                println("Erro de conversão: ${error.message}")
-                            }
+                            )
+                        } else {
+                            // 3. Novo cadastro manual
+                            viewModel.registrarMedicamento(
+                                request = estadoFormulario,
+                                imagemUri = fotoSelecionada,
+                                onSucesso = {
+                                    estadoFormulario = MedicamentoRequest(
+                                        unidadeMedida = "mg",
+                                        tipoMedicamento = "Comprimido"
+                                    )
+                                    camposComErro = emptySet()
+
+                                    navController.navigate("CadastroSucessoMedicamento")
+                                }
+                            )
                         }
-
-                        // Envia dados e foto para o ViewModel compartilhado
-                        viewModel.registrarMedicamento(estadoFormulario, imagemRemedioUri)
-
-                        // Reseta o formulário para caso o usuário clique em "Cadastrar outro medicamento"
-                        estadoFormulario = MedicamentoRequest(
-                            unidadeMedida = "mg",
-                            tipoMedicamento = "Comprimido"
-                        )
-                        imagemRemedioUri = null
-                        camposComErro = emptySet()
-
-                        navController.navigate("CadastroSucessoMedicamento")
                     } else {
                         Toast.makeText(context, "Preencha todos os campos obrigatórios (*).", Toast.LENGTH_SHORT).show()
                     }
                 },
+                enabled = !viewModel.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AzulPrincipal),
                 shape = CircleShape
             ) {
-                Text(
-                    text = "Cadastrar Medicamento",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (viewModel.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Text(
+                        text = if (isEdicao) "Salvar Alterações" else "Cadastrar Medicamento",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-        }
-
-        // Diálogo Câmera / Galeria
-        if (mostrarOpcoesFoto) {
-            AlertDialog(
-                onDismissRequest = { mostrarOpcoesFoto = false },
-                title = { Text("Selecionar Imagem") },
-                text = { Text("Deseja tirar uma foto agora ou escolher da galeria?") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            mostrarOpcoesFoto = false
-                            cameraLauncher.launch(cameraImagemUri)
-                        }
-                    ) { Text("Tirar Foto") }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            mostrarOpcoesFoto = false
-                            galleryLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        }
-                    ) { Text("Galeria") }
-                }
-            )
         }
 
         // Diálogo TimePicker
@@ -622,6 +654,7 @@ fun MedicamentoScreen(
                     TextButton(
                         onClick = {
                             val horaFormatada = String.format(
+                                java.util.Locale.ROOT,
                                 "%02d:%02d",
                                 timePickerState.hour,
                                 timePickerState.minute
