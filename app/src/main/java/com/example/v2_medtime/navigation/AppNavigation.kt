@@ -1,5 +1,6 @@
 package com.example.v2_medtime.navigation
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
@@ -48,6 +49,7 @@ import com.example.v2_medtime.screens.MedicamentoScreen
 import com.example.v2_medtime.screens.MedicamentosIdentificadosScreen
 import com.example.v2_medtime.screens.MeuCuidadorScreen
 import com.example.v2_medtime.screens.PacienteVinculado
+import com.example.v2_medtime.screens.PerfilCuidadorScreen
 import com.example.v2_medtime.screens.PerfilScreen
 import com.example.v2_medtime.screens.VinculoRealizadoScreen
 import com.example.v2_medtime.screens.VisaoPacienteScreen
@@ -679,12 +681,10 @@ fun AppNavigation(
             }
 
             composable("perfil_cuidador") {
-                PerfilScreen(
+                PerfilCuidadorScreen(
                     navController = navController,
                     viewModel = perfilViewModel,
-                    onNavigateTab = {},
-                    mostrarBarraInferior = false,
-                    perfilCuidador = true
+                    mostrarBarraInferior = true
                 )
             }
 

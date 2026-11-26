@@ -18,7 +18,9 @@ import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -59,23 +61,30 @@ fun AbasCuidador(
     )
     val coroutineScope = rememberCoroutineScope()
 
+    val irParaPagina: (Int) -> Unit = { pagina ->
+        if (pagina in 0..1 && pagina != pagerState.targetPage) {
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(
+                    page = pagina,
+                    animationSpec = tween(
+                        durationMillis = 250,
+                        easing = FastOutSlowInEasing
+                    )
+                )
+            }
+        }
+    }
+
+    androidx.activity.compose.BackHandler(enabled = pagerState.currentPage == 1) {
+        irParaPagina(0)
+    }
+
     LaunchedEffect(pagerState.settledPage) {
         if (pagerState.settledPage == 0) {
             vinculoViewModel.carregarPacientes(
                 onErro = onErro,
                 silencioso = true
             )
-        }
-    }
-
-    val irParaPagina: (Int) -> Unit = { pagina ->
-        if (pagina != pagerState.targetPage) {
-            coroutineScope.launch {
-                pagerState.animateScrollToPage(
-                    page = pagina,
-                    animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
-                )
-            }
         }
     }
 
@@ -92,9 +101,22 @@ fun AbasCuidador(
             }
         }
     ) { innerPadding ->
+        val direcaoLayout = androidx.compose.ui.platform.LocalLayoutDirection.current
+        val espacamentoInferiorConteudo = innerPadding.calculateBottomPadding()
+
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = true,
+            beyondViewportPageCount = 1,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    start = innerPadding.calculateStartPadding(direcaoLayout),
+                    end = innerPadding.calculateEndPadding(direcaoLayout)
+                )
+                .consumeWindowInsets(
+                    WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
+                ),
             key = { it }
         ) { pagina ->
             when (pagina) {
@@ -103,18 +125,16 @@ fun AbasCuidador(
                     pacientes = vinculoViewModel.pacientes,
                     onAdicionarPaciente = onAdicionarPaciente,
                     mostrarBarraInferior = false,
-                    espacamentoInferiorConteudo = innerPadding.calculateBottomPadding(),
+                    espacamentoInferiorConteudo = espacamentoInferiorConteudo,
                     isRefreshing = vinculoViewModel.isRefreshing,
                     onRefresh = { vinculoViewModel.atualizarPacientes(onErro) }
                 )
 
-                1 -> PerfilScreen(
+                1 -> PerfilCuidadorScreen(
                     navController = navController,
                     viewModel = perfilViewModel,
-                    onNavigateTab = {},
                     mostrarBarraInferior = false,
-                    espacamentoInferiorConteudo = innerPadding.calculateBottomPadding(),
-                    perfilCuidador = true,
+                    espacamentoInferiorConteudo = espacamentoInferiorConteudo,
                     onVoltarPacientes = { irParaPagina(0) }
                 )
             }
