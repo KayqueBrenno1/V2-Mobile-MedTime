@@ -175,7 +175,7 @@ fun EscolhaCadastroMedicamentoScreen(
                 OpcaoCadastroCard(
                     icon = Icons.Outlined.DocumentScanner,
                     titulo = "Escanear Receita",
-                    subtitulo = "Use a câmera para ler\nsua receita com OCR + IA",
+                    subtitulo = "Use a câmera \npara ler sua receita \ncom IA",
                     selecionado = modoSelecionado == ModoCadastro.OCR,
                     onClick = { modoSelecionado = ModoCadastro.OCR }
                 )
