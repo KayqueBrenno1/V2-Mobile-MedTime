@@ -116,8 +116,10 @@ fun CompletarDadosOcrScreen(
     val itemAtual = idAtual?.let { viewModel.buscarItemOcrPorId(it) }
 
     if (itemAtual == null) {
-        LaunchedEffect(Unit) {
-            sairDoAssistente()
+        if (!viewModel.isLoading) {
+            LaunchedEffect(Unit) {
+                sairDoAssistente()
+            }
         }
         return
     }
@@ -498,20 +500,34 @@ fun CompletarDadosOcrScreen(
             }
 
             // Botão principal de avanço / conclusão
+            val carregando = viewModel.isLoading || viewModel.isEscaneandoOcr
+
             Button(
                 onClick = { avancar() },
-                enabled = !viewModel.isLoading,
+                enabled = !carregando,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 20.dp)
                     .height(54.dp),
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = azulPrincipal)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = azulPrincipal,
+                    disabledContainerColor = azulPrincipal.copy(alpha = 0.75f),
+                    disabledContentColor = Color.White
+                )
             ) {
-                if (viewModel.isEscaneandoOcr) {
+                if (carregando) {
                     CircularProgressIndicator(
+                        color = Color.White,
                         strokeWidth = 2.5.dp,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (viewModel.isLoading) "Cadastrando..." else "Processando...",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 } else {
                     if (ehUltimoPassoGeral) {

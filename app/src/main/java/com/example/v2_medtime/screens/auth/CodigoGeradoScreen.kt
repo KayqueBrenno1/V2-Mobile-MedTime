@@ -173,7 +173,7 @@ fun CardQrCodeECodigo(
             // QR Code em destaque em cima
             Box(
                 modifier = Modifier
-                    .size(216.dp)
+                    .size(200.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(Color(0xFFF8FAFF))
                     .border(1.5.dp, Color(0xFFD5E6F7), RoundedCornerShape(20.dp))
@@ -276,7 +276,7 @@ fun CardQrCodeECodigo(
 
                 Button(
                     onClick = {
-                        val mensagem = "Olá! Use este código de 6 dígitos no MedTime para vincular sua conta: $codigoLimpo"
+                        val mensagem = "Olá! Use este código de 6 dígitos no MedTime para vincular sua conta com o cuidador: $codigoLimpo"
                         val sendIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, mensagem)

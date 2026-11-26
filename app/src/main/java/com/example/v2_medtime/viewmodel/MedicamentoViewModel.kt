@@ -13,9 +13,14 @@ import com.example.v2_medtime.data.repository.ApiMedicamentoRepository
 import com.example.v2_medtime.data.repository.MedicamentoRepository
 import com.example.v2_medtime.notifications.AgendadorAlarmesMedicamento
 import com.example.v2_medtime.notifications.VerificacaoPeriodicaWorker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.URL
+
+const val URL_IMAGEM_PADRAO_OCR = "https://res.cloudinary.com/dl5pjsesc/image/upload/v1795705769/medicamento_padrao.jpg"
 
 enum class StatusMedicamento(val label: String) {
     ATIVO("Ativos"),
@@ -296,6 +301,25 @@ class MedicamentoViewModel(
         }
     }
 
+    private suspend fun obterArquivoImagemPadraoOcr(): File? = withContext(Dispatchers.IO) {
+        runCatching {
+            val arquivoCache = File(
+                getApplication<Application>().cacheDir,
+                "ocr_imagem_padrao_${URL_IMAGEM_PADRAO_OCR.hashCode()}.png"
+            )
+            if (arquivoCache.exists() && arquivoCache.length() > 0L) {
+                return@runCatching arquivoCache
+            }
+
+            URL(URL_IMAGEM_PADRAO_OCR).openStream().use { input ->
+                arquivoCache.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            arquivoCache.takeIf { it.exists() && it.length() > 0L }
+        }.getOrNull()
+    }
+
     fun cadastrarSelecionadosOcr(onConcluido: () -> Unit) {
         val selecionados = remediosIdentificadosOcr.filter { it.selecionado }
         if (selecionados.isEmpty() || isLoading) return
@@ -303,9 +327,17 @@ class MedicamentoViewModel(
         viewModelScope.launch {
             isLoading = true
             erroMensagem = null
+            val cadastradosComSucesso = mutableListOf<ItemOcrIdentificado>()
             try {
+                val arquivoPadrao = obterArquivoImagemPadraoOcr()
+                val uriPadrao = arquivoPadrao?.let { Uri.fromFile(it) }
+
                 for (item in selecionados) {
-                    val resultado = repository.cadastrarMedicamento(item.dados, null, null)
+                    val resultado = repository.cadastrarMedicamento(
+                        request = item.dados,
+                        imagemFile = arquivoPadrao,
+                        imagemUriLocal = uriPadrao
+                    )
                     val novoItem = resultado.getOrNull()
                     if (novoItem == null) {
                         erroMensagem = resultado.exceptionOrNull()?.message
@@ -313,14 +345,24 @@ class MedicamentoViewModel(
                         return@launch
                     }
 
-                    ultimoMedicamento = novoItem
-                    listaMedicamentos.add(0, novoItem)
-                    remediosIdentificadosOcr.remove(item)
+                    val itemComImagem = if (novoItem.imagemUrlRemota.isNullOrBlank()) {
+                        novoItem.copy(imagemUrlRemota = URL_IMAGEM_PADRAO_OCR)
+                    } else {
+                        novoItem
+                    }
+
+                    ultimoMedicamento = itemComImagem
+                    listaMedicamentos.add(0, itemComImagem)
+                    cadastradosComSucesso.add(item)
                 }
+
                 AgendadorAlarmesMedicamento.sincronizarAlarmes(getApplication())
                 VerificacaoPeriodicaWorker.executarAgora(getApplication())
                 onConcluido()
             } finally {
+                if (cadastradosComSucesso.isNotEmpty()) {
+                    remediosIdentificadosOcr.removeAll(cadastradosComSucesso.toSet())
+                }
                 isLoading = false
             }
         }
